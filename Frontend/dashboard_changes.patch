@@ -1,0 +1,1895 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index b3b1561..7d5d41f 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -1,6 +1,146 @@
+-import React from 'react'
+-import Dashboard from './components/Dashboard.jsx'
++import React, { useState } from 'react';
++import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
++import TopNavbar from './components/TopNavbar.jsx';
++import Sidebar from './components/Sidebar.jsx';
++import MobileBottomNavbar from './components/MobileBottomNavbar.jsx';
++import DashboardPage from './pages/DashboardPage.jsx';
++import LeadsPage from './pages/LeadsPage.jsx';
++
++function AppLayout() {
++  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
++  const [currentPage, setCurrentPage] = useState('dashboard');
++  const navigate = useNavigate();
++
++  const handleNavigate = (path) => {
++    setCurrentPage(path);
++    navigate(`/${path}`);
++  };
++
++  const handleMobileMenuToggle = () => {
++    setMobileMenuOpen(!mobileMenuOpen);
++  };
++
++  const getPageTitle = () => {
++    // Always show Dashboard for desktop navbar
++    return 'Dashboard';
++  };
++
++  const getPageSubtitle = () => {
++    // Always show the same subtitle for desktop navbar
++    return 'Manage Everything from a single place';
++  };
++
++  return (
++    <div className="min-h-screen bg-background text-gray-700">
++      {/* MOBILE MENU OVERLAY */}
++      {mobileMenuOpen && (
++        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden" onClick={() => setMobileMenuOpen(false)}>
++          <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
++            <div className="p-6">
++              <div className="flex justify-between items-center mb-8">
++                <h2 className="text-xl font-semibold">Menu</h2>
++                <button onClick={() => setMobileMenuOpen(false)} className="text-gray-500 hover:text-gray-700">
++                  ✕
++                </button>
++              </div>
++              {/* Mobile menu items would go here */}
++              <div className="space-y-4">
++                <button
++                  onClick={() => { handleNavigate('dashboard'); setMobileMenuOpen(false); }}
++                  className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100"
++                >
++                  <span className="text-primary">📊</span>
++                  <span className="text-gray-700 font-medium">Dashboard</span>
++                </button>
++                <button
++                  onClick={() => { handleNavigate('lead-management'); setMobileMenuOpen(false); }}
++                  className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100"
++                >
++                  <span className="text-primary">👥</span>
++                  <span className="text-gray-700 font-medium">Lead Management</span>
++                </button>
++                <button
++                  onClick={() => { handleNavigate('clients-management'); setMobileMenuOpen(false); }}
++                  className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100"
++                >
++                  <span className="text-primary">🤝</span>
++                  <span className="text-gray-700 font-medium">Clients Management</span>
++                </button>
++                <button
++                  onClick={() => { handleNavigate('projects-management'); setMobileMenuOpen(false); }}
++                  className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100"
++                >
++                  <span className="text-primary">📁</span>
++                  <span className="text-gray-700 font-medium">Projects Management</span>
++                </button>
++              </div>
++            </div>
++          </div>
++        </div>
++      )}
++
++      <div className="flex h-screen max-h-screen overflow-hidden">
++        {/* SIDEBAR - HIDDEN ON MOBILE */}
++        <Sidebar activeItem={currentPage} onNavigate={handleNavigate} />
++
++        {/* MAIN AREA */}
++        <div className="flex-1 flex flex-col min-w-0 md:overflow-hidden overflow-auto">
++          {/* TOP BAR - FIXED ON MOBILE */}
++          <div className="md:relative fixed top-0 left-0 right-0 z-30 md:z-auto bg-white md:bg-transparent">
++            <TopNavbar
++              title={getPageTitle()}
++              subtitle={getPageSubtitle()}
++              onMobileMenuToggle={handleMobileMenuToggle}
++            />
++          </div>
++
++          {/* PAGE CONTENT */}
++          <Routes>
++            <Route path="/" element={<DashboardPage />} />
++            <Route path="/dashboard" element={<DashboardPage />} />
++            <Route path="/lead-management" element={<LeadsPage />} />
++            {/* Placeholder routes for other pages */}
++            <Route path="/clients-management" element={
++              <div className="flex-1 flex flex-col min-w-0">
++                <div className="flex-1 flex overflow-hidden">
++                  <main className="flex-1 overflow-auto px-4 sm:px-6 py-4">
++                    <div className="text-center py-20">
++                      <h2 className="text-2xl font-bold text-gray-800 mb-4">Clients Management</h2>
++                      <p className="text-gray-600">This page is under development.</p>
++                    </div>
++                  </main>
++                </div>
++              </div>
++            } />
++            <Route path="/projects-management" element={
++              <div className="flex-1 flex flex-col min-w-0">
++                <div className="flex-1 flex overflow-hidden">
++                  <main className="flex-1 overflow-auto px-4 sm:px-6 py-4">
++                    <div className="text-center py-20">
++                      <h2 className="text-2xl font-bold text-gray-800 mb-4">Projects Management</h2>
++                      <p className="text-gray-600">This page is under development.</p>
++                    </div>
++                  </main>
++                </div>
++              </div>
++            } />
++          </Routes>
++
++          {/* MOBILE BOTTOM NAVIGATION */}
++          <MobileBottomNavbar
++            onNavigate={handleNavigate}
++            onMenuToggle={() => setMobileMenuOpen(true)}
++          />
++        </div>
++      </div>
++    </div>
++  );
++}
+ 
+ export default function App() {
+-  return <Dashboard />
++  return (
++    <Router>
++      <AppLayout />
++    </Router>
++  );
+ }
+diff --git a/src/Jsonfiles/sidebarjson.json b/src/Jsonfiles/sidebarjson.json
+new file mode 100644
+index 0000000..f3bc110
+--- /dev/null
++++ b/src/Jsonfiles/sidebarjson.json
+@@ -0,0 +1,60 @@
++{
++  "items": [
++    {
++      "key": "dashboard",
++      "label": "Dashboard",
++      "icon": "LayoutDashboard",
++      "path": "dashboard"
++    },
++    {
++      "key": "leads",
++      "label": "Leads",
++      "icon": "Users",
++      "path": "lead-management"
++    },
++    {
++      "key": "clients",
++      "label": "Clients",
++      "icon": "UserCheck",
++      "path": "clients-management"
++    },
++    {
++      "key": "projects",
++      "label": "Projects",
++      "icon": "Folder",
++      "path": "projects-management"
++    },
++    {
++      "key": "reports",
++      "label": "Reports",
++      "icon": "BarChart3",
++      "path": "reports"
++    },
++    {
++      "key": "settings",
++      "label": "Settings",
++      "icon": "Settings",
++      "path": "settings"
++    }
++  ],
++  "footerItems": [
++    {
++      "key": "inventory",
++      "label": "Inventory",
++      "icon": "Boxes",
++      "path": "inventory"
++    },
++    {
++      "key": "reports",
++      "label": "Reports",
++      "icon": "BarChart3",
++      "path": "reports"
++    },
++    {
++      "key": "settings",
++      "label": "Settings",
++      "icon": "Settings",
++      "path": "settings"
++    }
++  ]
++}
+diff --git a/src/assets/CSS/index.css b/src/assets/CSS/index.css
+new file mode 100644
+index 0000000..8b6f459
+--- /dev/null
++++ b/src/assets/CSS/index.css
+@@ -0,0 +1,9 @@
++@import './theme.css';
++
++@tailwind base;
++@tailwind components;
++@tailwind utilities;
++
++body {
++  @apply bg-background font-sans;
++}
+diff --git a/src/assets/CSS/mobileBottomNavbar.css b/src/assets/CSS/mobileBottomNavbar.css
+new file mode 100644
+index 0000000..a0147a8
+--- /dev/null
++++ b/src/assets/CSS/mobileBottomNavbar.css
+@@ -0,0 +1,205 @@
++/* Lucas Bebber Gooey Menu - Yellow Theme */
++
++.gooey-menu {
++  filter: url('#shadowed-goo');
++  position: fixed;
++  bottom: 70px;
++  left: 50%;
++  transform: translateX(-50%);
++  width: 380px;
++  height: 250px;
++  box-sizing: border-box;
++  font-size: 20px;
++  text-align: center;
++  z-index: 60;
++  pointer-events: none;
++}
++
++.gooey-menu * {
++  pointer-events: auto;
++}
++
++/* Ball base style */
++.menu-item {
++  background: #fbbf24;
++  border-radius: 100%;
++  width: 76px;
++  height: 76px;
++  position: absolute;
++  bottom: 0;
++  left: 50%;
++  margin-left: -38px;
++  color: white;
++  text-align: center;
++  line-height: 76px;
++  /* Hidden by default so no extra circle is visible before clicking Plus */
++  transform: translate3d(0, 0, 0) scale(0);
++  opacity: 0;
++  transition: transform 220ms ease-out, opacity 180ms ease-out;
++  overflow: hidden;
++}
++
++.menu-open-button {
++  background: #fbbf24;
++  border-radius: 100%;
++  width: 85px;
++  height: 85px;
++  position: absolute;
++  bottom: 0;
++  left: 50%;
++  margin-left: -42.5px;
++  color: white;
++  text-align: center;
++  line-height: 85px;
++  transform: translate3d(0, 0, 0);
++  transition: transform ease-out 200ms;
++  overflow: hidden;
++}
++
++.menu-open {
++  display: none;
++}
++
++/* Menu items */
++.menu-item {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  text-decoration: none;
++  flex-direction: column;
++  line-height: 1;
++  padding: 10px;
++}
++
++.menu-item-content {
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  justify-content: center;
++  gap: 4px;
++  max-width: 65px;
++  overflow: hidden;
++}
++
++.menu-icon {
++  width: 26px;
++  height: 26px;
++  stroke-width: 2;
++}
++
++/* Plus icon inside toggle - centered */
++.plus-icon {
++  width: 32px;
++  height: 32px;
++  color: #ffffff;
++  transition: transform 200ms;
++  position: absolute;
++  top: 50%;
++  left: 50%;
++  transform: translate(-50%, -50%);
++}
++
++.menu-open:checked + .menu-open-button .plus-icon {
++  transform: translate(-50%, -50%) rotate(45deg);
++}
++
++/* Spacer inside bottom bar to keep the Plus centered under the gooey toggle */
++.gooey-spacer {
++  width: 86px;
++  height: 86px;
++}
++
++.menu-label {
++  font-size: 11px;
++  font-weight: 600;
++  text-transform: capitalize;
++  text-align: center;
++  white-space: normal;
++  word-break: break-word;
++  line-height: 1.1;
++  color: #ffffff;
++}
++
++.menu-item:hover {
++  background: white;
++  color: #fbbf24;
++}
++
++/* Hamburger styles removed - using Plus icon */
++
++/* Hide the menu open button - Plus is now in bottom bar */
++.menu-open-button {
++  display: none;
++}
++
++/* Menu item transitions - staggered timing */
++.menu-item:nth-child(3) {
++  transition-duration: 70ms;
++}
++
++.menu-item:nth-child(4) {
++  transition-duration: 130ms;
++}
++
++.menu-item:nth-child(5) {
++  transition-duration: 190ms;
++}
++
++.menu-item:nth-child(6) {
++  transition-duration: 250ms;
++}
++
++.menu-item:nth-child(7) {
++  transition-duration: 310ms;
++}
++
++/* Menu item positions when open - Lucas Bebber angles; hide until open */
++/* DOM: input (1) + 5 .menu-item (2..6) */
++.menu-open:checked ~ .menu-item {
++  transition-timing-function: cubic-bezier(0.935, 0, 0.34, 1.33);
++  opacity: 1;
++}
++/* Even semi-circle (desktop) with consistent radius */
++/* Angles: 0°, 45°, 90°, 135°, 180° */
++.menu-open:checked ~ .menu-item:nth-child(2) { transition-duration: 160ms; transform: translate3d(120px, 0px, 0) scale(1); }
++.menu-open:checked ~ .menu-item:nth-child(3) { transition-duration: 240ms; transform: translate3d(85px, -85px, 0) scale(1); }
++.menu-open:checked ~ .menu-item:nth-child(4) { transition-duration: 320ms; transform: translate3d(0px, -120px, 0) scale(1); }
++.menu-open:checked ~ .menu-item:nth-child(5) { transition-duration: 400ms; transform: translate3d(-85px, -85px, 0) scale(1); }
++.menu-open:checked ~ .menu-item:nth-child(6) { transition-duration: 480ms; transform: translate3d(-120px, 0px, 0) scale(1); }
++
++/* Responsive - smaller screens */
++@media (max-width: 640px) {
++  .gooey-menu {
++    width: 320px;
++    bottom: 65px;
++  }
++
++  .menu-item,
++  .menu-open-button {
++    width: 70px;
++    height: 70px;
++    margin-left: -35px;
++    line-height: 70px;
++  }
++
++  .menu-item-content { max-width: 60px; }
++  .menu-icon { width: 22px; height: 22px; }
++
++  .menu-label { font-size: 9.5px; }
++  
++  .plus-icon { width: 28px; height: 28px; }
++
++  /* Even semi-circle (mobile) scaled radius */
++  .menu-open:checked ~ .menu-item:nth-child(2) { transform: translate3d(96px, 0px, 0) scale(1); }
++  .menu-open:checked ~ .menu-item:nth-child(3) { transform: translate3d(68px, -68px, 0) scale(1); }
++  .menu-open:checked ~ .menu-item:nth-child(4) { transform: translate3d(0px, -96px, 0) scale(1); }
++  .menu-open:checked ~ .menu-item:nth-child(5) { transform: translate3d(-68px, -68px, 0) scale(1); }
++  .menu-open:checked ~ .menu-item:nth-child(6) { transform: translate3d(-96px, 0px, 0) scale(1); }
++}
++
++/* Hide on desktop */
++@media (min-width: 1024px) {
++  .gooey-menu {
++    display: none;
++  }
++}
+diff --git a/src/assets/CSS/theme.css b/src/assets/CSS/theme.css
+new file mode 100644
+index 0000000..1361ed5
+--- /dev/null
++++ b/src/assets/CSS/theme.css
+@@ -0,0 +1,11 @@
++:root {
++  --primary-color: #2289ff;
++  --secondary-color: #ff4d4f;
++  --background-color: #f5f7fb;
++  --light-primary-bg: #eef3ff;
++  --light-gray-bg: #f9fafb;
++  --light-blue-bg: #fafbff;
++  --light-green-bg: #e7f7ec;
++  --green-text: #1ea34a;
++  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
++}
+diff --git a/src/components/Dashboard.jsx b/src/components/Dashboard.jsx
+index a8ec280..29187b6 100644
+--- a/src/components/Dashboard.jsx
++++ b/src/components/Dashboard.jsx
+@@ -21,6 +21,7 @@ import {
+    FiUserPlus,
+    FiUserCheck
+ } from "react-icons/fi";
++import MobileBottomNavbar from './MobileBottomNavbar';
+ 
+ import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, ResponsiveContainer, Legend} from "recharts";
+ import {  PieChart, Pie, Cell } from "recharts";
+@@ -35,11 +36,55 @@ import logo from "../assets/logo.jpg";
+ 
+ 
+ export default function Dashboard() {
++  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
++
++  const handleNavigate = (target) => {
++    console.log('Navigate to', target);
++    // Here you can add logic to navigate to different pages
++  };
++
+   return (
+-    <div className="min-h-screen bg-[#f5f7fb] text-gray-700">
++    <div className="min-h-screen bg-background text-gray-700">
++      {/* MOBILE MENU OVERLAY */}
++      {mobileMenuOpen && (
++        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden" onClick={() => setMobileMenuOpen(false)}>
++          <div className="absolute right-0 top-0 h-full w-80 bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
++            <div className="p-6">
++              <div className="flex justify-between items-center mb-8">
++                <h2 className="text-xl font-semibold">Menu</h2>
++                <button onClick={() => setMobileMenuOpen(false)} className="text-gray-500 hover:text-gray-700">
++                  ✕
++                </button>
++              </div>
++
++              {/* MOBILE MENU ITEMS */}
++              <div className="space-y-4">
++                <div className="text-[10px] font-semibold text-gray-400 tracking-[0.08em] uppercase">Management</div>
++                <MobileMenuItem icon={<FiHome size={20} />} label="Dashboard" onClick={() => setMobileMenuOpen(false)} />
++                <MobileMenuItem icon={<FiUserPlus size={20} />} label="Lead Management" onClick={() => setMobileMenuOpen(false)} />
++                <MobileMenuItem icon={<FiUsers size={20} />} label="Clients Management" onClick={() => setMobileMenuOpen(false)} />
++                <MobileMenuItem icon={<FiFolder size={20} />} label="Projects Management" onClick={() => setMobileMenuOpen(false)} />
++                <MobileMenuItem icon={<FiUserCheck size={20} />} label="Employee Management" onClick={() => setMobileMenuOpen(false)} />
++
++                <div className="text-[10px] font-semibold text-gray-400 tracking-[0.08em] uppercase pt-4">Accounting</div>
++                <MobileMenuItem icon={<FiTruck size={20} />} label="Site Expenses" onClick={() => setMobileMenuOpen(false)} />
++                <MobileMenuItem icon={<FiFileText size={20} />} label="Site Received" onClick={() => setMobileMenuOpen(false)} />
++
++                <div className="text-[10px] font-semibold text-gray-400 tracking-[0.08em] uppercase pt-4">Business Review</div>
++                <MobileMenuItem icon={<FiBarChart2 size={20} />} label="Reports" onClick={() => setMobileMenuOpen(false)} />
++
++                <div className="text-[10px] font-semibold text-gray-400 tracking-[0.08em] uppercase pt-4">Settings</div>
++                <MobileMenuItem icon={<FiSettings size={20} />} label="Settings" onClick={() => setMobileMenuOpen(false)} />
++                <MobileMenuItem icon={<FiHelpCircle size={20} />} label="Help & Support" onClick={() => setMobileMenuOpen(false)} />
++              </div>
++            </div>
++          </div>
++        </div>
++      )}
++
+       <div className="flex h-screen max-h-screen overflow-hidden">
+-        {/* LEFT SIDEBAR */}
+-        <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
++        {/* LEFT SIDEBAR - HIDDEN ON MOBILE */}
++        <aside className="hidden md:flex w-60 bg-white border-r border-gray-200 flex-col">
+           {/* Logo / Brand */}
+           <div className="h-14 flex items-center gap-2 px-4 border-b border-gray-200">
+             <div className="w-9 h-9 rounded-lg overflow-hidden shadow-sm">
+@@ -60,7 +105,7 @@ export default function Dashboard() {
+           </div>
+ 
+           {/* Sidebar scroll */}
+-          <div className="flex-1 overflow-auto text-[13px] pb-4 hover:text-[#2289ff]">
++          <div className="flex-1 overflow-auto text-[13px] pb-4 hover:text-primary">
+             <SidebarSection title="MANAGEMENT" />
+             <SidebarItem icon={<FiHome size={15} />} label="Dashboard" active />
+             <SidebarItem  icon={<FiUserPlus size={15} />} label="Lead Management" />
+@@ -95,17 +140,15 @@ export default function Dashboard() {
+         {/* MAIN AREA */}
+         <div className="flex-1 flex flex-col min-w-0">
+           
+-          {/* TOP BAR */}
+-          <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8">
++          {/* TOP BAR - DESKTOP */}
++          <header className="hidden md:flex h-14 bg-white border-b border-gray-200 items-center justify-between px-4 sm:px-8">
+               <div className="flex flex-col">
+     <h1 className="text-[18px] font-semibold text-gray-700">Dashboard</h1>
+     <h6 className="text-[12px] text-gray-500">Manage Everything from a single place</h6>
+   </div>
+-            <div className="flex items-center gap-3 text-[13px] text-gray-500"></div>
+-            
+ 
+             <div className="flex items-center gap-4">
+-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-200 bg-[#f9fafb] text-[13px] text-gray-500">
++              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-200 bg-light-gray-bg text-[13px] text-gray-500">
+                 <FiSearch size={14} />
+                 <input
+                   placeholder="Search"
+@@ -114,21 +157,29 @@ export default function Dashboard() {
+               </div>
+               <button className="relative">
+                 <FiBell size={17} className="text-gray-500" />
+-                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#ff4d4f] border-2 border-white" />
++                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-secondary border-2 border-white" />
+               </button>
+-              <div className="w-8 h-8 rounded-full bg-[#eef3ff] flex items-center justify-center text-xs font-semibold text-[#2289ff]">
++              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
+                 AS
+               </div>
+             </div>
+           </header>
+ 
++          {/* MOBILE HEADER - SIMPLIFIED */}
++          <header className="md:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4">
++            <h1 className="text-lg font-semibold text-gray-700">Dashboard</h1>
++          </header>
++
++          {/* MOBILE BOTTOM NAVIGATION */}
++          <MobileBottomNavbar onNavigate={handleNavigate} />
++
+   
+ 
+           {/* BODY: main left + right column */}
+           <div className="flex-1 flex overflow-hidden">
+             {/* MAIN CENTER CONTENT */}
+          <main
+-  className="flex-1 overflow-auto px-4 sm:px-6 py-4 space-y-4"
++  className="flex-1 overflow-auto px-4 sm:px-6 py-4 space-y-4 md:pb-4 pb-24"
+   style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+ >
+ 
+@@ -221,7 +272,7 @@ export default function Dashboard() {
+     
+ 
+     {/* TASK LIST */}
+-<div className="bg-white rounded-xl p-4 shadow-sm h-[323px] overflow-y-auto">
++<div className="bg-white rounded-xl p-4 shadow-sm h-[323px] overflow-y-auto overflow-x-auto md:overflow-x-visible">
+ 
+ 
+     {/* TABLE HEADER */}
+@@ -293,7 +344,7 @@ export default function Dashboard() {
+ 
+ 
+   {/* RIGHT — PROJECT SUMMARY TABLE */}
+-  <div className="bg-white rounded-xl p-4 shadow-sm">
++  <div className="bg-white rounded-xl p-4 shadow-sm overflow-x-auto md:overflow-visible">
+ 
+     {/* TABLE HEADER */}
+     <div className="flex items-center justify-between mb-4">
+@@ -366,10 +417,10 @@ export default function Dashboard() {
+ 
+ 
+     {/* Header */}
+-    
++
+ 
+     {/* TASK LIST */}
+-<div className="bg-white rounded-xl p-4 shadow-sm">
++<div className="bg-white rounded-xl p-4 shadow-sm overflow-x-auto md:overflow-visible">
+ 
+   {/* TABLE HEADER */}
+   <div className="flex items-center justify-between mb-4">
+@@ -490,7 +541,7 @@ export default function Dashboard() {
+ 
+ 
+   {/* RIGHT — PROJECT SUMMARY TABLE */}
+-  <div className="bg-white rounded-xl p-4 shadow-sm">
++  <div className="bg-white rounded-xl p-4 shadow-sm overflow-x-auto md:overflow-visible">
+ 
+     {/* TABLE HEADER */}
+     <div className="flex items-center justify-between mb-4">
+@@ -664,6 +715,19 @@ export default function Dashboard() {
+         
+ /* ================= SUB COMPONENTS ================= */
+ 
++// Mobile Menu Item Component
++function MobileMenuItem({ icon, label, onClick }) {
++  return (
++    <button
++      onClick={onClick}
++      className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100 transition-colors"
++    >
++      <span className="text-primary">{icon}</span>
++      <span className="text-gray-700 font-medium">{label}</span>
++    </button>
++  );
++}
++
+ function SidebarSection({ title }) {
+   return (
+     <div className="px-4 pt-4 pb-1 text-[10px] font-semibold text-gray-400 tracking-[0.08em]">
+@@ -688,7 +752,7 @@ function SectionCard({ title, children }) {
+ 
+ function StatCard({ label, amount, icon, variant }) {
+   const accent =
+-    variant === "danger" ? "text-[#ff4d4f] bg-[#fff1f0]" : "text-[#2289ff] bg-[#eef3ff]";
++    variant === "danger" ? "text-secondary bg-secondary/10" : "text-primary bg-primary/10";
+   return (
+     <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-3 bg-white hover:shadow-sm transition">
+       <div>
+@@ -704,13 +768,13 @@ function StatCard({ label, amount, icon, variant }) {
+ 
+ function SmallProjectionCard({ heading, value, change }) {
+   return (
+-    <div className="rounded-lg border border-gray-200 bg-[#fafbff] px-3 py-3 flex items-center justify-between">
++    <div className="rounded-lg border border-gray-200 bg-light-blue-bg px-3 py-3 flex items-center justify-between">
+       <div>
+         <div className="text-[11px] text-gray-500 mb-1">{heading}</div>
+         <div className="text-[14px] font-semibold text-gray-700">{value}</div>
+       </div>
+-      <div className="flex items-center gap-1 text-[11px] text-[#1ea34a] font-medium">
+-        <span className="w-4 h-4 rounded-full bg-[#e7f7ec] flex items-center justify-center text-[10px]">
++      <div className="flex items-center gap-1 text-[11px] text-green-text font-medium">
++        <span className="w-4 h-4 rounded-full bg-light-green-bg flex items-center justify-center text-[10px]">
+           ↑
+         </span>
+         <span>{change}</span>
+@@ -721,8 +785,8 @@ function SmallProjectionCard({ heading, value, change }) {
+ 
+ function QuickAction({ label }) {
+   return (
+-    <button className="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-3 hover:bg-[#eef3ff] hover:border-[#ccd7ff] transition text-center">
+-      <div className="w-7 h-7 rounded-full bg-[#eef3ff] flex items-center justify-center text-[#2289ff] group-hover:bg-[#2289ff] group-hover:text-white text-xs">
++    <button className="group flex flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-3 hover:bg-primary/10 hover:border-primary/20 transition text-center">
++      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white text-xs">
+         <FiPlus size={14} />
+       </div>
+       <span className="text-[11px] font-medium text-gray-700 leading-tight">
+@@ -760,7 +824,7 @@ function ChecklistItem({ label, checked, index }) {
+       <div
+         className={`mt-[1px] w-3.5 h-3.5 rounded border flex items-center justify-center text-[9px] ${
+           checked
+-            ? "bg-[#2289ff] border-[#2289ff] text-white"
++            ? "bg-primary border-primary text-white"
+             : "border-gray-300 bg-white text-transparent"
+         }`}
+       >
+@@ -775,8 +839,8 @@ function ChecklistItem({ label, checked, index }) {
+ 
+ function HelpTile({ label }) {
+   return (
+-    <button className="flex flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-[#f9fafb] px-3 py-3 text-center hover:bg-white hover:shadow-sm transition">
+-      <div className="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs text-[#2289ff]">
++    <button className="flex flex-col items-center justify-center gap-1 rounded-lg border border-gray-200 bg-light-gray-bg px-3 py-3 text-center hover:bg-white hover:shadow-sm transition">
++      <div className="w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs text-primary">
+         ?
+       </div>
+       <span>{label}</span>
+@@ -788,10 +852,10 @@ function SidebarItem({ icon, label, active }) {
+     <button
+       className={
+         `group w-full flex items-center gap-2 px-4 py-2 text-left border-l-2 transition-all duration-200
+-         hover:bg-[#eaf2ff] 
+-         ${active 
+-            ? "border-[#2289ff] bg-[#eef3ff] text-[#2289ff] font-medium" 
+-            : "border-transparent text-gray-600 hover:text-[#2289ff]"
++         hover:bg-primary/5
++         ${active
++            ? "border-primary bg-primary/10 text-primary font-medium"
++            : "border-transparent text-gray-600 hover:text-primary"
+          }`
+       }
+     >
+@@ -799,8 +863,8 @@ function SidebarItem({ icon, label, active }) {
+       <span
+         className={
+           active
+-            ? "text-[#2289ff]"      // icon blue when active
+-            : "text-gray-500 group-hover:text-[#2289ff] transition"
++            ? "text-primary"      // icon blue when active
++            : "text-gray-500 group-hover:text-primary transition"
+         }
+       >
+         {icon}
+@@ -810,8 +874,8 @@ function SidebarItem({ icon, label, active }) {
+       <span
+         className={
+           active
+-            ? "text-[#2289ff]"      // text blue when active
+-            : "group-hover:text-[#2289ff] transition"
++            ? "text-primary"      // text blue when active
++            : "group-hover:text-primary transition"
+         }
+       >
+         {label}
+@@ -848,5 +912,3 @@ function TaskRow({ title, status, color, done }) {
+     </div>
+   );
+ }
+-
+-
+diff --git a/src/components/MobileBottomNavbar.jsx b/src/components/MobileBottomNavbar.jsx
+new file mode 100644
+index 0000000..4a2b815
+--- /dev/null
++++ b/src/components/MobileBottomNavbar.jsx
+@@ -0,0 +1,240 @@
++import { useMemo, useState } from "react";
++// add X and Plus to the import list
++import {
++  LayoutDashboard,
++  FileText,
++  Quote,
++  BarChart3,
++  Settings,
++  LogOut,
++  Users,
++  Boxes,
++  ShoppingCart,
++  ClipboardList,
++  FileSignature,
++  CloudUpload,
++  IndianRupee,
++  Undo2,
++  FileBarChart2,
++  Truck,
++  RotateCw,
++  FileMinus,
++  FilePlus,
++  Wallet,
++  BarChart,
++  Plus,   // <-- add
++  X,      // <-- add
++  UserCheck,
++  Folder
++} from 'lucide-react';
++
++import sidebarConfig from "../Jsonfiles/sidebarjson.json";
++
++// Map JSON icon names -> lucide components
++const ICON_MAP = {
++  LayoutDashboard,
++  FileText,
++  Quote,
++  BarChart3,
++  Settings,
++  LogOut,
++  Users,
++  Boxes,
++  ShoppingCart,
++  ClipboardList,
++  FileSignature,
++  CloudUpload,
++  IndianRupee,
++  Undo2,
++  FileBarChart2,
++  Truck,
++  RotateCw,
++  FileMinus,
++  FilePlus,
++  Wallet,
++  BarChart,
++  Plus, // <-- add
++  X,    // <-- add
++  UserCheck,
++  Folder
++};
++
++
++const BottomIcon = ({ label, icon, onClick, active = false }) => (
++  <button
++    type="button"
++    onClick={onClick}
++    className={`flex flex-col items-center justify-center px-2 py-3 rounded-lg transition-all duration-200 flex-1 max-w-[90px] ${
++      active ? "text-primary" : "text-gray-500"
++    } active:scale-95`}
++  >
++    <div className={`p-1.5 rounded-lg ${active ? "bg-primary/10" : ""}`}>
++      {icon}
++    </div>
++    <span
++      className={`text-[10px] mt-1 font-medium leading-tight text-center ${
++        active ? "text-primary" : "text-gray-500"
++      }`}
++    >
++      {label}
++    </span>
++  </button>
++);
++
++export default function MobileBottomNavbar({ onNavigate, onMenuToggle }) {
++  const [isGridOpen, setIsGridOpen] = useState(false);
++
++  const createIcon = (name, color) => {
++    const C = ICON_MAP[name];
++    return C ? (
++      <C className={`h-6 w-6 ${color || "text-current"}`} />
++    ) : (
++      <div className="h-6 w-6 bg-gray-200 rounded" />
++    );
++  };
++
++  // No translation, just return label
++  const localize = (label) => label;
++
++  const mainItems = useMemo(
++    () =>
++      (sidebarConfig.items || []).map((it) => ({
++        ...it,
++        label: localize(it.label),
++        _iconEl: createIcon(it.icon, it.color),
++      })),
++    []
++  );
++
++  const footerItems = useMemo(
++    () =>
++      (sidebarConfig.footerItems || [])
++        .filter((f) => f.key !== "logout") // Keep logout out of the quick grid
++        .map((it) => ({
++          ...it,
++          label: localize(it.label),
++          _iconEl: createIcon(it.icon, it.color),
++        })),
++    []
++  );
++
++  const GRID_ITEMS = [...mainItems, ...footerItems];
++
++  // Centralized navigation -> parent
++  const go = (itemOrKey) => {
++    const target =
++      typeof itemOrKey === "string"
++        ? itemOrKey
++        : itemOrKey?.path || itemOrKey?.key || "";
++    setIsGridOpen(false);
++    if (typeof onNavigate === "function") onNavigate(target);
++  };
++
++  return (
++    <>
++      {/* Full-screen two-column grid like your reference image */}
++      {isGridOpen && (
++        <div className="fixed inset-0 z-[60] bg-white lg:hidden flex flex-col">
++          {/* Header */}
++          <div className="flex items-center gap-3 px-4 py-3 border-b">
++            <button
++              type="button"
++              onClick={() => setIsGridOpen(false)}
++              className="p-1 -ml-1 rounded-full hover:bg-gray-100"
++              aria-label="Close"
++            >
++              <X className="h-6 w-6" />
++            </button>
++            <h2 className="text-base font-semibold">What are you offering?</h2>
++          </div>
++
++          {/* Scrollable grid area */}
++          <div className="flex-1 overflow-y-auto">
++            <div className="grid grid-cols-2 divide-x divide-y">
++              {GRID_ITEMS.map((item) => (
++                <button
++                  key={item.key}
++                  type="button"
++                  onClick={() => go(item)}
++                  className="flex flex-col items-center justify-center gap-2 py-6 px-4 active:bg-gray-50 hover:bg-gray-100"
++                >
++                  <div className="h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center">
++                    {item._iconEl}
++                  </div>
++                  <span className="text-[13px] leading-tight text-gray-700 text-center">
++                    {item.label}
++                  </span>
++                </button>
++              ))}
++            </div>
++          </div>
++        </div>
++      )}
++
++      {/* Bottom Navigation Bar - Mobile App Style */}
++      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
++        {/* Safe area padding for mobile devices */}
++        <div className="pb-safe-area-inset-bottom">
++
++          {/* Main navigation container */}
++          <div className="relative bg-white/95 backdrop-blur-lg border-t border-gray-200/50 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] rounded-t-[50px]">
++
++            {/* Navigation buttons container */}
++            <div className="flex items-center justify-around px-2 py-1 relative">
++
++              {/* Left navigation buttons */}
++              <div className="flex items-center justify-center flex-1">
++                <BottomIcon
++                  label={localize(mainItems[0]?.label) || "Dashboard"}
++                  icon={mainItems[0]?._iconEl || <LayoutDashboard />}
++                  onClick={() => go(mainItems[0])}
++                  active
++                />
++              </div>
++
++              <div className="flex items-center justify-center flex-1">
++                <BottomIcon
++                  label={localize(mainItems[1]?.label) || "Leads"}
++                  icon={mainItems[1]?._iconEl || <Users />}
++                  onClick={() => go(mainItems[1])}
++                />
++              </div>
++
++              {/* Center floating button - positioned absolutely */}
++              <div className="flex items-center justify-center flex-1 relative">
++                <div className="absolute -top-6 left-1/2 transform -translate-x-1/2">
++                  <button
++                    type="button"
++                    onClick={() => setIsGridOpen(true)}
++                    className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center text-white shadow-[0_4px_20px_rgba(34,137,255,0.4)] hover:shadow-[0_6px_24px_rgba(34,137,255,0.5)] transition-all duration-200 active:scale-95 border-4 border-white"
++                    aria-label="Open quick menu"
++                  >
++                    <Plus className="h-7 w-7" />
++                  </button>
++                </div>
++              </div>
++
++              {/* Right navigation buttons */}
++              <div className="flex items-center justify-center flex-1">
++                <BottomIcon
++                  label={localize(mainItems[2]?.label) || "Clients"}
++                  icon={mainItems[2]?._iconEl || <UserCheck />}
++                  onClick={() => go(mainItems[2])}
++                />
++              </div>
++
++              <div className="flex items-center justify-center flex-1">
++                <BottomIcon
++                  label={localize(mainItems[3]?.label) || "Projects"}
++                  icon={mainItems[3]?._iconEl || <Folder />}
++                  onClick={() => go(mainItems[3])}
++                />
++              </div>
++
++            </div>
++          </div>
++        </div>
++      </div>
++    </>
++  );
++}
+diff --git a/src/components/Sidebar.jsx b/src/components/Sidebar.jsx
+new file mode 100644
+index 0000000..2d827eb
+--- /dev/null
++++ b/src/components/Sidebar.jsx
+@@ -0,0 +1,178 @@
++import React from "react";
++import {
++  FiHome,
++  FiUsers,
++  FiFileText,
++  FiShoppingCart,
++  FiTruck,
++  FiCreditCard,
++  FiBarChart2,
++  FiSettings,
++  FiHelpCircle,
++  FiBell,
++  FiSearch,
++  FiPlus,
++  FiFolder,
++  FiUser,
++  FiUserX,
++  FiChevronRight,
++   FiCheckSquare,
++   FiLogOut,
++   FiUserPlus,
++   FiUserCheck
++} from "react-icons/fi";
++import logo from "../assets/logo.jpg";
++
++function SidebarSection({ title }) {
++  return (
++    <div className="px-4 pt-4 pb-1 text-[10px] font-semibold text-gray-400 tracking-[0.08em]">
++      {title}
++    </div>
++  );
++}
++
++function SidebarItem({ icon, label, active, onClick }) {
++  return (
++    <button
++      onClick={onClick}
++      className={
++        `group w-full flex items-center gap-2 px-4 py-2 text-left border-l-2 transition-all duration-200
++         hover:bg-primary/5
++         ${active
++            ? "border-primary bg-primary/10 text-primary font-medium"
++            : "border-transparent text-gray-600 hover:text-primary"
++         }`
++      }
++    >
++      {/* ICON */}
++      <span
++        className={
++          active
++            ? "text-primary"      // icon blue when active
++            : "text-gray-500 group-hover:text-primary transition"
++        }
++      >
++        {icon}
++      </span>
++
++      {/* TEXT */}
++      <span
++        className={
++          active
++            ? "text-primary"      // text blue when active
++            : "group-hover:text-primary transition"
++        }
++      >
++        {label}
++      </span>
++    </button>
++  );
++}
++
++export default function Sidebar({ activeItem, onNavigate }) {
++  const handleNavigate = (path) => {
++    if (onNavigate) {
++      onNavigate(path);
++    }
++  };
++
++  return (
++    <aside className="hidden md:flex w-60 bg-white border-r border-gray-200 flex-col">
++      {/* Logo / Brand */}
++      <div className="h-14 flex items-center gap-2 px-4 border-b border-gray-200">
++        <div className="w-9 h-9 rounded-lg overflow-hidden shadow-sm">
++          <img
++            src={logo}
++            alt="Logo"
++            className="w-full h-full object-cover"
++          />
++        </div>
++        <div className="leading-tight">
++          <div className="text-sm font-semibold">DDC Developer</div>
++          <div className="text-[11px] text-gray-400 uppercase tracking-wide">
++            Manage all Projects
++          </div>
++        </div>
++      </div>
++
++      {/* Sidebar scroll */}
++      <div className="flex-1 overflow-auto text-[13px] pb-4 hover:text-primary">
++        <SidebarSection title="MANAGEMENT" />
++        <SidebarItem
++          icon={<FiHome size={15} />}
++          label="Dashboard"
++          active={activeItem === "dashboard"}
++          onClick={() => handleNavigate("dashboard")}
++        />
++        <SidebarItem
++          icon={<FiUserPlus size={15} />}
++          label="Lead Management"
++          active={activeItem === "lead-management"}
++          onClick={() => handleNavigate("lead-management")}
++        />
++        <SidebarItem
++          icon={<FiUsers size={15} />}
++          label="Clients Management"
++          active={activeItem === "clients-management"}
++          onClick={() => handleNavigate("clients-management")}
++        />
++        <SidebarItem
++          icon={<FiFolder size={15} />}
++          label="Projects Management"
++          active={activeItem === "projects-management"}
++          onClick={() => handleNavigate("projects-management")}
++        />
++        <SidebarItem
++          icon={<FiUserCheck size={15} />}
++          label="Employee Management"
++          active={activeItem === "employee-management"}
++          onClick={() => handleNavigate("employee-management")}
++        />
++
++        <SidebarSection title="ACCOUNTING"/>
++        <SidebarItem
++          icon={<FiTruck size={15} />}
++          label="Site Expenses"
++          active={activeItem === "site-expenses"}
++          onClick={() => handleNavigate("site-expenses")}
++        />
++        <SidebarItem
++          icon={<FiFileText size={15} />}
++          label="Site Received"
++          active={activeItem === "site-received"}
++          onClick={() => handleNavigate("site-received")}
++        />
++
++        <SidebarSection title="BUSINESS REVIEW"/>
++        <SidebarItem
++          icon={<FiBarChart2 size={15} />}
++          label="Reports"
++          active={activeItem === "reports"}
++          onClick={() => handleNavigate("reports")}
++        />
++
++        <SidebarSection title="SETTINGS" />
++        <SidebarItem
++          icon={<FiSettings size={15} />}
++          label="Settings"
++          active={activeItem === "settings"}
++          onClick={() => handleNavigate("settings")}
++        />
++        <SidebarItem
++          icon={<FiHelpCircle size={15} />}
++          label="Help & Support"
++          active={activeItem === "help-support"}
++          onClick={() => handleNavigate("help-support")}
++        />
++      </div>
++
++      {/* Footer small strip */}
++      <div className="h-10 border-t border-gray-200 flex items-center justify-between px-4 text-[11px] text-gray-500">
++        <span className="flex items-center gap-2">
++          <FiLogOut size={14} className="text-gray-500" />
++          LOG OUT
++        </span>
++      </div>
++    </aside>
++  );
++}
+diff --git a/src/components/TopNavbar.jsx b/src/components/TopNavbar.jsx
+new file mode 100644
+index 0000000..54a638b
+--- /dev/null
++++ b/src/components/TopNavbar.jsx
+@@ -0,0 +1,50 @@
++import React from "react";
++import { FiBell, FiSearch } from "react-icons/fi";
++
++export default function TopNavbar({ title, subtitle, onMobileMenuToggle }) {
++  return (
++    <>
++      {/* TOP BAR - DESKTOP */}
++      <header className="hidden md:flex h-14 bg-white border-b border-gray-200 items-center justify-between px-4 sm:px-8 py-2">
++        <div className="flex flex-col">
++          <h1 className="text-[18px] font-semibold text-gray-700">{title}</h1>
++          <h6 className="text-[12px] text-gray-500">{subtitle}</h6>
++        </div>
++
++        <div className="flex items-center gap-4">
++          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-200 bg-light-gray-bg text-[13px] text-gray-500">
++            <FiSearch size={14} />
++            <input
++              placeholder="Search"
++              className="bg-transparent outline-none text-xs w-32"
++            />
++          </div>
++          <button className="relative">
++            <FiBell size={17} className="text-gray-500" />
++            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-secondary border-2 border-white" />
++          </button>
++          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
++            AS
++          </div>
++        </div>
++      </header>
++
++      {/* MOBILE HEADER - SIMPLIFIED */}
++      <header className="md:hidden h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 py-2">
++        <div className="flex flex-col">
++          <h1 className="text-lg font-semibold text-gray-700">{title}</h1>
++          <p className="text-xs text-gray-500">{subtitle}</p>
++        </div>
++        <div className="flex items-center gap-3">
++          <button className="relative">
++            <FiBell size={18} className="text-gray-500" />
++            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-secondary border border-white" />
++          </button>
++          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary">
++            AS
++          </div>
++        </div>
++      </header>
++    </>
++  );
++}
+diff --git a/src/index.css b/src/index.css
+deleted file mode 100644
+index 2422db9..0000000
+--- a/src/index.css
++++ /dev/null
+@@ -1,8 +0,0 @@
+-@tailwind base;
+-@tailwind components;
+-@tailwind utilities;
+-
+-body {
+-  @apply bg-[#f5f7fb];
+-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+-}
+diff --git a/src/main.jsx b/src/main.jsx
+index 54b39dd..48ce827 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -1,7 +1,7 @@
+ import React from 'react'
+ import ReactDOM from 'react-dom/client'
+ import App from './App.jsx'
+-import './index.css'
++import './assets/CSS/index.css'
+ 
+ ReactDOM.createRoot(document.getElementById('root')).render(
+   <React.StrictMode>
+diff --git a/src/pages/DashboardPage.jsx b/src/pages/DashboardPage.jsx
+new file mode 100644
+index 0000000..4ec5e32
+--- /dev/null
++++ b/src/pages/DashboardPage.jsx
+@@ -0,0 +1,464 @@
++import React from "react";
++import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, ResponsiveContainer, Legend} from "recharts";
++import {  PieChart, Pie, Cell } from "recharts";
++import { FiFolder, FiUsers, FiUserX, FiCheckSquare } from "react-icons/fi";
++
++function SectionCard({ title, children }) {
++  return (
++    <div className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition">
++      <div className="p-4">{children}</div>
++    </div>
++  );
++}
++
++export default function DashboardPage() {
++  return (
++    <div className="flex-1 flex flex-col min-w-0">
++      {/* BODY: main left + right column */}
++      <div className="flex-1 flex overflow-hidden">
++        {/* MAIN CENTER CONTENT */}
++        <main
++          className="flex-1 overflow-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 space-y-3 sm:space-y-4 lg:space-y-6 md:pb-4 pb-24 md:pt-0 pt-20"
++          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
++        >
++
++
++
++          {/* BUSINESS OPERATIONS CARDS */}
++          <SectionCard title="">
++            <div className="flex gap-4 overflow-x-auto pb-2 sm:hidden">
++              <div className="flex items-center gap-3 p-3 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative min-w-[140px] flex-shrink-0">
++                <div className="p-2 bg-orange-100 shadow-md text-orange-500 rounded-lg border border-orange-300">
++                  <FiFolder size={18} />
++                </div>
++                <div>
++                  <div className="text-sm font-bold">50+</div>
++                  <div className="text-xs font-medium text-gray-500">Total Projects</div>
++                </div>
++              </div>
++
++              <div className="flex items-center gap-3 p-3 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative min-w-[140px] flex-shrink-0">
++                <div className="p-2 bg-green-100 shadow-md text-green-500 rounded-lg border border-green-300">
++                  <FiUsers size={18} />
++                </div>
++                <div>
++                  <div className="text-sm font-bold">10+</div>
++                  <div className="text-xs font-medium text-gray-500">Total Clients</div>
++                </div>
++              </div>
++
++              <div className="flex items-center gap-3 p-3 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative min-w-[140px] flex-shrink-0">
++                <div className="p-2 bg-blue-100 shadow-md text-blue-500 rounded-lg border border-blue-300">
++                  <FiUserX size={18} />
++                </div>
++                <div>
++                  <div className="text-sm font-bold">100+</div>
++                  <div className="text-xs font-medium text-gray-500">Total Employees</div>
++                </div>
++              </div>
++
++              <div className="flex items-center gap-3 p-3 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative min-w-[140px] flex-shrink-0">
++                <div className="p-2 bg-red-100 shadow-md text-red-500 rounded-lg border border-red-300">
++                  <FiCheckSquare size={18} />
++                </div>
++                <div>
++                  <div className="text-sm font-bold">10+</div>
++                  <div className="text-xs font-medium text-gray-500">Pending Task</div>
++                </div>
++              </div>
++            </div>
++
++            {/* DESKTOP/TABLET GRID VIEW */}
++            <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-[13px]">
++              <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative">
++                <div className="p-2 sm:p-3 bg-orange-100 shadow-md text-orange-500 rounded-lg border border-orange-300">
++                  <FiFolder size={18} className="sm:w-5 sm:h-5" />
++                </div>
++                <div>
++                  <div className="text-sm sm:text-base font-bold">50+</div>
++                  <div className="text-xs sm:text-sm font-medium text-gray-500">Total Projects</div>
++                </div>
++              </div>
++
++              <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative">
++                <div className="p-2 sm:p-3 bg-green-100 shadow-md text-green-500 rounded-lg border border-green-300">
++                  <FiUsers size={18} className="sm:w-5 sm:h-5" />
++                </div>
++                <div>
++                  <div className="text-sm sm:text-base font-bold">10+</div>
++                  <div className="text-xs sm:text-sm font-medium text-gray-500">Total Clients</div>
++                </div>
++              </div>
++
++              <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative">
++                <div className="p-2 sm:p-3 bg-blue-100 shadow-md text-blue-500 rounded-lg border border-blue-300">
++                  <FiUserX size={18} className="sm:w-5 sm:h-5" />
++                </div>
++                <div>
++                  <div className="text-sm sm:text-base font-bold">100+</div>
++                  <div className="text-xs sm:text-sm font-medium text-gray-500">Total Employees</div>
++                </div>
++              </div>
++
++              <div className="flex items-center gap-3 p-3 sm:p-4 rounded-lg shadow-sm border border-grey-300 hover:shadow-md transition relative">
++                <div className="p-2 sm:p-3 bg-red-100 shadow-md text-red-500 rounded-lg border border-red-300">
++                  <FiCheckSquare size={18} className="sm:w-5 sm:h-5" />
++                </div>
++                <div>
++                  <div className="text-sm sm:text-base font-bold">10+</div>
++                  <div className="text-xs sm:text-sm font-medium text-gray-500">Pending Task</div>
++                </div>
++              </div>
++            </div>
++          </SectionCard>
++
++          {/* TODAY TASK + PROJECT SUMMARY (SIDE BY SIDE) */}
++          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
++
++            {/* LEFT — TODAY TASK */}
++            <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm h-[280px] sm:h-[323px] overflow-y-auto">
++              {/* TABLE HEADER */}
++              <div className="flex items-center justify-between mb-2">
++                <h2 className="text-base sm:text-[18px] font-semibold text-gray-700">Pending Task</h2>
++              </div>
++
++              {/* RESPONSIVE TABLE */}
++              <div className="overflow-x-auto">
++                <table className="w-full text-left text-xs sm:text-[13px] min-w-[300px]">
++                  <thead>
++                    <tr className="border-b">
++                      <th className="py-2 px-1">Task Name</th>
++                      <th className="py-2 px-1">Due date</th>
++                      <th className="py-2 px-1">Status</th>
++                    </tr>
++                  </thead>
++
++                  <tbody className="text-gray-700">
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Nelsa web development</td>
++                      <td className="py-2 sm:py-3 px-1">May 25, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Completed</span></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Datascale AI app</td>
++                      <td className="py-2 sm:py-3 px-1">Jun 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs">Delayed</span></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Media channel branding</td>
++                      <td className="py-2 sm:py-3 px-1">July 13, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">At risk</span></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Corlax iOS app development</td>
++                      <td className="py-2 sm:py-3 px-1">Dec 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">Completed</span></td>
++                    </tr>
++
++                    <tr>
++                      <td className="py-2 sm:py-3 px-1">Website builder development</td>
++                      <td className="py-2 sm:py-3 px-1">Mar 15, 2024</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs">On going</span></td>
++                    </tr>
++                  </tbody>
++                </table>
++              </div>
++            </div>
++
++            {/* RIGHT — PROJECT SUMMARY TABLE */}
++            <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm h-[280px] sm:h-auto">
++              {/* TABLE HEADER */}
++              <div className="flex items-center justify-between mb-3 sm:mb-4">
++                <h2 className="text-base sm:text-[18px] font-semibold text-gray-700">Project summary</h2>
++              </div>
++
++              {/* RESPONSIVE TABLE */}
++              <div className="overflow-x-auto">
++                <table className="w-full text-left text-xs sm:text-[13px] min-w-[280px]">
++                  <thead>
++                    <tr className="border-b">
++                      <th className="py-2 px-1">Name</th>
++                      <th className="py-2 px-1">Due date</th>
++                      <th className="py-2 px-1">Progress</th>
++                    </tr>
++                  </thead>
++
++                  <tbody className="text-gray-700">
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Nelsa web development</td>
++                      <td className="py-2 sm:py-3 px-1">May 25, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-[2px] border-green-500 flex items-center justify-center text-[8px] sm:text-[10px] font-semibold">100%</div></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Datascale AI app</td>
++                      <td className="py-2 sm:py-3 px-1">Jun 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-[2px] border-yellow-500 flex items-center justify-center text-[8px] sm:text-[10px] font-semibold">35%</div></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Media channel branding</td>
++                      <td className="py-2 sm:py-3 px-1">July 13, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-[2px] border-red-500 flex items-center justify-center text-[8px] sm:text-[10px] font-semibold">68%</div></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Corlax iOS app development</td>
++                      <td className="py-2 sm:py-3 px-1">Dec 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-[2px] border-green-500 flex items-center justify-center text-[8px] sm:text-[10px] font-semibold">100%</div></td>
++                    </tr>
++
++                    <tr>
++                      <td className="py-2 sm:py-3 px-1">Website builder development</td>
++                      <td className="py-2 sm:py-3 px-1">Mar 15, 2024</td>
++                      <td className="py-2 sm:py-3 px-1"><div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-[2px] border-orange-500 flex items-center justify-center text-[8px] sm:text-[10px] font-semibold">50%</div></td>
++                    </tr>
++                  </tbody>
++                </table>
++              </div>
++            </div>
++          </div>
++
++          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
++
++            {/* LEFT — MATERIAL REQUEST */}
++            <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm">
++              {/* TABLE HEADER */}
++              <div className="flex items-center justify-between mb-3 sm:mb-4">
++                <h2 className="text-base sm:text-[18px] font-semibold text-gray-700">Material Request</h2>
++              </div>
++
++              {/* RESPONSIVE TABLE */}
++              <div className="overflow-x-auto">
++                <table className="w-full text-left text-xs sm:text-[13px] min-w-[350px]">
++                  <thead>
++                    <tr className="border-b">
++                      <th className="py-2 px-1">Project Name</th>
++                      <th className="py-2 px-1">Material</th>
++                      <th className="py-2 px-1">Action</th>
++                    </tr>
++                  </thead>
++
++                  <tbody className="text-gray-700">
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Nelsa web development</td>
++                      <td className="py-2 sm:py-3 px-1">Cement Bags</td>
++                      <td className="py-2 sm:py-3 px-1">
++                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
++                          <button className="px-2 sm:px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded-full text-xs hover:bg-green-200">
++                            Approve
++                          </button>
++                          <button className="px-2 sm:px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-full text-xs hover:bg-red-200">
++                            Reject
++                          </button>
++                        </div>
++                      </td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Datascale AI app</td>
++                      <td className="py-2 sm:py-3 px-1">Iron Rods</td>
++                      <td className="py-2 sm:py-3 px-1">
++                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
++                          <button className="px-2 sm:px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded-full text-xs hover:bg-green-200">
++                            Approve
++                          </button>
++                          <button className="px-2 sm:px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-full text-xs hover:bg-red-200">
++                            Reject
++                          </button>
++                        </div>
++                      </td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Media channel branding</td>
++                      <td className="py-2 sm:py-3 px-1">Tiles</td>
++                      <td className="py-2 sm:py-3 px-1">
++                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
++                          <button className="px-2 sm:px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded-full text-xs hover:bg-green-200">
++                            Approve
++                          </button>
++                          <button className="px-2 sm:px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-full text-xs hover:bg-red-200">
++                            Reject
++                          </button>
++                        </div>
++                      </td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Corlax iOS app development</td>
++                      <td className="py-2 sm:py-3 px-1">Wooden Sheets</td>
++                      <td className="py-2 sm:py-3 px-1">
++                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
++                          <button className="px-2 sm:px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded-full text-xs hover:bg-green-200">
++                            Approve
++                          </button>
++                          <button className="px-2 sm:px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-full text-xs hover:bg-red-200">
++                            Reject
++                          </button>
++                        </div>
++                      </td>
++                    </tr>
++
++                    <tr>
++                      <td className="py-2 sm:py-3 px-1">Website builder development</td>
++                      <td className="py-2 sm:py-3 px-1">Wires & Switches</td>
++                      <td className="py-2 sm:py-3 px-1">
++                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
++                          <button className="px-2 sm:px-3 py-1 bg-green-100 text-green-700 border border-green-300 rounded-full text-xs hover:bg-green-200">
++                            Approve
++                          </button>
++                          <button className="px-2 sm:px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-full text-xs hover:bg-red-200">
++                            Reject
++                          </button>
++                        </div>
++                      </td>
++                    </tr>
++                  </tbody>
++                </table>
++              </div>
++            </div>
++
++            {/* RIGHT — RECENT TRANSACTION */}
++            <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm">
++              {/* TABLE HEADER */}
++              <div className="flex items-center justify-between mb-3 sm:mb-4">
++                <h2 className="text-base sm:text-[18px] font-semibold text-gray-700">Recent Transaction</h2>
++              </div>
++
++              {/* RESPONSIVE TABLE */}
++              <div className="overflow-x-auto">
++                <table className="w-full text-left text-xs sm:text-[13px] min-w-[300px]">
++                  <thead>
++                    <tr className="border-b">
++                      <th className="py-2 px-1">Project Name</th>
++                      <th className="py-2 px-1">Date</th>
++                      <th className="py-2 px-1">Amount</th>
++                    </tr>
++                  </thead>
++
++                  <tbody className="text-gray-700">
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Nelsa web development</td>
++                      <td className="py-2 sm:py-3 px-1">May 25, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">1,00,000</span></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Datascale AI app</td>
++                      <td className="py-2 sm:py-3 px-1">Jun 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">50,000</span></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Media channel branding</td>
++                      <td className="py-2 sm:py-3 px-1">July 13, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">2,00,000</span></td>
++                    </tr>
++
++                    <tr className="border-b">
++                      <td className="py-2 sm:py-3 px-1">Corlax iOS app development</td>
++                      <td className="py-2 sm:py-3 px-1">Dec 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">4,00,000</span></td>
++                    </tr>
++
++                    <tr>
++                      <td className="py-2 sm:py-3 px-1">Corlax iOS app development</td>
++                      <td className="py-2 sm:py-3 px-1">Dec 20, 2023</td>
++                      <td className="py-2 sm:py-3 px-1"><span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">4,00,000</span></td>
++                    </tr>
++                  </tbody>
++                </table>
++              </div>
++            </div>
++          </div>
++
++          {/* ANALYTICS CHARTS ROW */}
++          <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 pb-6 sm:pb-10">
++
++            {/* SEMICIRCLE GAUGE */}
++            <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200 shadow-sm h-[280px] sm:h-[320px]">
++              <div className="flex items-center justify-between mt-1 mb-2">
++                <h2 className="text-sm sm:text-[16px] font-semibold text-gray-700">Overall Progress</h2>
++                <button className="text-[10px] sm:text-[11px] bg-white px-2 py-0.5 rounded-full border border-gray-200">All ▾</button>
++              </div>
++
++              {/* CHART CONTAINER */}
++              <div className="relative w-full h-32 sm:h-40 flex items-center justify-center">
++                <ResponsiveContainer width="100%" height="100%">
++                  <PieChart>
++                    <Pie
++                      data={[
++                        { value: 72 },
++                        { value: 15 },
++                        { value: 13 },
++                      ]}
++                      cx="50%"
++                      cy="100%"
++                      startAngle={180}
++                      endAngle={0}
++                      innerRadius={50}
++                      outerRadius={85}
++                      paddingAngle={5}
++                    >
++                      <Cell fill="#16a34a" />
++                      <Cell fill="#facc15" />
++                      <Cell fill="#f87171" />
++                    </Pie>
++                  </PieChart>
++                </ResponsiveContainer>
++
++                {/* Center text */}
++                <div className="absolute text-center mt-[80px] sm:mt-[100px]">
++                  <div className="text-lg sm:text-xl font-bold text-gray-800">72%</div>
++                  <div className="text-xs text-gray-500 -mt-1">Completed</div>
++                </div>
++              </div>
++
++              {/* Bottom stats */}
++              <div className="grid grid-cols-3 gap-2 text-center mt-2 sm:mt-3 text-[10px] sm:text-[11px]">
++                <div><div className="font-bold text-lg sm:text-[20px] text-green-600">26</div><div className="text-gray-500">Done</div></div>
++                <div><div className="font-bold text-lg sm:text-[20px] text-yellow-500">35</div><div className="text-gray-500">Delay</div></div>
++                <div><div className="font-bold text-lg sm:text-[20px] text-orange-500">35</div><div className="text-gray-500">Ongoing</div></div>
++              </div>
++            </div>
++
++            {/* SIMPLE BAR CHART */}
++            <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-200 shadow-sm h-[280px] sm:h-[320px]">
++              <h2 className="text-sm sm:text-[16px] font-semibold text-gray-800 mb-2">
++                Performance Analytics
++              </h2>
++
++              <div className="w-full h-[180px] sm:h-[220px] mt-4 sm:mt-8">
++                <ResponsiveContainer width="100%" height="100%">
++                  <BarChart
++                    data={[
++                      { name: "Jan", projects: 24, revenue: 40 },
++                      { name: "Feb", projects: 13, revenue: 30 },
++                      { name: "Mar", projects: 98, revenue: 20 },
++                      { name: "Apr", projects: 39, revenue: 27 },
++                      { name: "May", projects: 48, revenue: 18 },
++                      { name: "Jun", projects: 38, revenue: 23 },
++                    ]}
++                    margin={{ top: 0, right: 5, left: 0, bottom: 0 }}
++                  >
++                    <CartesianGrid strokeDasharray="3 3" />
++                    <XAxis dataKey="name" tick={{ fontSize: 9 }} />
++                    <YAxis tick={{ fontSize: 9 }} />
++                    <Tooltip />
++                    <Legend wrapperStyle={{ fontSize: 9 }} />
++                    <Bar dataKey="projects" stackId="a" fill="#8884d8" barSize={16} />
++                    <Bar dataKey="revenue" stackId="a" fill="#82ca9d" barSize={16} />
++                  </BarChart>
++                </ResponsiveContainer>
++              </div>
++            </div>
++          </div>
++        </main>
++      </div>
++    </div>
++  );
++}
+diff --git a/src/pages/LeadsPage.jsx b/src/pages/LeadsPage.jsx
+new file mode 100644
+index 0000000..f763007
+--- /dev/null
++++ b/src/pages/LeadsPage.jsx
+@@ -0,0 +1,149 @@
++import React from "react";
++import { FiUserPlus, FiMail, FiPhone, FiCalendar, FiDollarSign } from "react-icons/fi";
++
++export default function LeadsPage() {
++  const leads = [
++    { id: 1, name: "John Smith", email: "john@example.com", phone: "+1 234 567 890", status: "New", value: "$50,000", date: "2024-01-15" },
++    { id: 2, name: "Sarah Johnson", email: "sarah@example.com", phone: "+1 234 567 891", status: "Contacted", value: "$75,000", date: "2024-01-10" },
++    { id: 3, name: "Mike Davis", email: "mike@example.com", phone: "+1 234 567 892", status: "Qualified", value: "$120,000", date: "2024-01-08" },
++    { id: 4, name: "Emma Wilson", email: "emma@example.com", phone: "+1 234 567 893", status: "Proposal", value: "$90,000", date: "2024-01-05" },
++    { id: 5, name: "Chris Brown", email: "chris@example.com", phone: "+1 234 567 894", status: "Negotiation", value: "$200,000", date: "2024-01-03" },
++  ];
++
++  const getStatusColor = (status) => {
++    switch (status) {
++      case "New": return "bg-blue-100 text-blue-700";
++      case "Contacted": return "bg-yellow-100 text-yellow-700";
++      case "Qualified": return "bg-green-100 text-green-700";
++      case "Proposal": return "bg-purple-100 text-purple-700";
++      case "Negotiation": return "bg-orange-100 text-orange-700";
++      default: return "bg-gray-100 text-gray-700";
++    }
++  };
++
++  return (
++    <div className="flex-1 flex flex-col min-w-0">
++      <div className="flex-1 flex overflow-hidden">
++        <main className="flex-1 overflow-auto px-4 sm:px-6 py-4 space-y-4 md:pb-4 pb-24">
++
++          {/* PAGE TITLE */}
++          <div className="mb-6">
++            <h2 className="text-2xl font-bold text-gray-800 mb-2">Lead Management</h2>
++            <p className="text-gray-600">Track and manage your potential clients and opportunities.</p>
++          </div>
++
++          {/* STATS CARDS */}
++          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
++            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
++              <div className="flex items-center gap-3">
++                <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
++                  <FiUserPlus size={20} />
++                </div>
++                <div>
++                  <div className="text-lg font-bold">24</div>
++                  <div className="text-sm text-gray-500">Total Leads</div>
++                </div>
++              </div>
++            </div>
++
++            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
++              <div className="flex items-center gap-3">
++                <div className="p-3 bg-green-100 text-green-600 rounded-lg">
++                  <FiDollarSign size={20} />
++                </div>
++                <div>
++                  <div className="text-lg font-bold">$535K</div>
++                  <div className="text-sm text-gray-500">Total Value</div>
++                </div>
++              </div>
++            </div>
++
++            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
++              <div className="flex items-center gap-3">
++                <div className="p-3 bg-yellow-100 text-yellow-600 rounded-lg">
++                  <FiCalendar size={20} />
++                </div>
++                <div>
++                  <div className="text-lg font-bold">8</div>
++                  <div className="text-sm text-gray-500">This Month</div>
++                </div>
++              </div>
++            </div>
++
++            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
++              <div className="flex items-center gap-3">
++                <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
++                  <FiMail size={20} />
++                </div>
++                <div>
++                  <div className="text-lg font-bold">68%</div>
++                  <div className="text-sm text-gray-500">Conversion Rate</div>
++                </div>
++              </div>
++            </div>
++          </div>
++
++          {/* LEADS TABLE */}
++          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
++            <div className="p-6 border-b border-gray-200">
++              <h3 className="text-lg font-semibold text-gray-800">Recent Leads</h3>
++            </div>
++
++            <div className="overflow-x-auto">
++              <table className="w-full">
++                <thead className="bg-gray-50">
++                  <tr>
++                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lead</th>
++                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
++                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
++                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
++                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
++                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
++                  </tr>
++                </thead>
++                <tbody className="bg-white divide-y divide-gray-200">
++                  {leads.map((lead) => (
++                    <tr key={lead.id} className="hover:bg-gray-50">
++                      <td className="px-6 py-4 whitespace-nowrap">
++                        <div className="flex items-center">
++                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-xs font-semibold text-primary mr-3">
++                            {lead.name.split(' ').map(n => n[0]).join('')}
++                          </div>
++                          <div>
++                            <div className="text-sm font-medium text-gray-900">{lead.name}</div>
++                          </div>
++                        </div>
++                      </td>
++                      <td className="px-6 py-4 whitespace-nowrap">
++                        <div className="text-sm text-gray-900">{lead.email}</div>
++                        <div className="text-sm text-gray-500">{lead.phone}</div>
++                      </td>
++                      <td className="px-6 py-4 whitespace-nowrap">
++                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(lead.status)}`}>
++                          {lead.status}
++                        </span>
++                      </td>
++                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
++                        {lead.value}
++                      </td>
++                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
++                        {new Date(lead.date).toLocaleDateString()}
++                      </td>
++                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
++                        <div className="flex space-x-2">
++                          <button className="text-primary hover:text-primary/80">View</button>
++                          <button className="text-blue-600 hover:text-blue-800">Edit</button>
++                          <button className="text-red-600 hover:text-red-800">Delete</button>
++                        </div>
++                      </td>
++                    </tr>
++                  ))}
++                </tbody>
++              </table>
++            </div>
++          </div>
++        </main>
++      </div>
++    </div>
++  );
++}

@@ -1,0 +1,190 @@
+/* CSS Variables for consistent form styling */
+:root {
+  --font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --label-font-size: 11px;
+  --label-font-weight: 600;
+  --input-font-size: 14px;
+  --placeholder-font-size: 14px;
+  --input-height: 48px;
+  --input-padding: 16px 12px 16px 12px;
+  --input-border-color: #d1d5db;
+  --input-focus-border-color: #3b82f6;
+  --input-bg-color: #ffffff;
+  --input-text-color: #111827;
+  --input-placeholder-color: #6b7280;
+  --input-border-radius: 8px;
+  --form-margin-bottom: 16px;
+  --form-gap: 20px;
+  --primary-color: #2289ff;
+  --secondary-color: #ef4444;
+}
+
+/* Task Form Styles */
+.task-modal {
+  width: 1100px !important;
+  max-width: 95% !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  font-family: var(--font-family);
+  color: #222222;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Lead Form Styles */
+.lead-modal {
+  width: 1100px !important;
+  max-width: 95% !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  font-family: var(--font-family);
+  color: #222222;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lead-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color) 100%);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-radius: 28px 28px 0 0;
+}
+
+.lead-header h2 {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-family: var(--font-family);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover {
+  background: #f9fafb;
+}
+
+.primary-btn {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(180deg, var(--primary-color) 0%, var(--primary-color) 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(34, 137, 255, 0.35);
+  transition: transform 0.08s ease;
+}
+.primary-btn:hover {
+  filter: brightness(1.02);
+}
+.primary-btn:active { transform: translateY(1px); }
+
+.lead-body {
+  padding: 20px 24px 24px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+/* Input field with label inside border */
+.relative {
+  position: relative;
+}
+
+.relative label {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  background: white;
+  padding: 0 4px;
+  font-size: 10px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  z-index: 1;
+  pointer-events: none;
+}
+
+input, textarea, .border {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  background: white;
+  font-family: var(--font-family);
+  box-sizing: border-box;
+}
+
+input:focus, textarea:focus, .border:focus-within {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(34, 137, 255, 0.1);
+}
+
+input::placeholder, textarea::placeholder {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Country box width */
+.w-48 {
+  width: 12rem;
+}
+
+/* Select dropdown styling */
+.cursor-pointer {
+  cursor: pointer;
+}
+
+/* Grid layout */
+.grid-cols-1 {
+  grid-template-columns: 1fr;
+}
+
+.md\:grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-6 {
+  gap: 1.5rem;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+  .md\:col-span-1 {
+    grid-column: span 1;
+  }
+  .md\:col-span-2 {
+    grid-column: span 2;
+  }
+}

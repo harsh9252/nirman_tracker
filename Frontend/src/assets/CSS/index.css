@@ -1,0 +1,94 @@
+@import './theme.css';
+@import './TableActionButton.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
+}
+
+
+
+body {
+  background-color: #f8f9fa;
+  font-family: var(--font-family);
+}
+
+/* Hide native calendar icon in date inputs when we render custom left icon */
+.date-no-indicator::-webkit-calendar-picker-indicator {
+  display: none !important;
+}
+
+
+/* 📱 Small Mobiles (320px – 480px)  */
+@media (max-width: 480px) {
+  .hero-section {
+    height: 100vh;   /* full height */
+  
+  }
+}
+
+/* 📱 Large Mobiles (up to 600px) */
+@media (max-width: 600px) {
+  .hero-section {
+    height: 95vh;   /* little smaller */
+  }
+}
+
+/* 📲 Tablets (up to 768px) */
+@media (max-width: 768px) {
+  .hero-section {
+    height: 90vh;
+  }
+}
+
+/* 💻 Small Laptops (up to 992px) */
+@media (max-width: 992px) {
+  .hero-section {
+    height: 85vh;
+  }
+}
+
+/* 💻 Laptops (up to 1200px) */
+@media (max-width: 1200px) {
+  .hero-section {
+    height: 80vh;
+  }
+}
+
+/* 🖥️ Large Screens (1200px – 1400px) */
+@media (max-width: 1400px) {
+  .hero-section {
+    height: 90vh;
+  }
+}
+
+/* 🖥️ Extra Large Screens (above 1400px) */
+@media (min-width: 1400px) {
+  .hero-section {
+    height: 90vh;  /* full height */
+  }
+}

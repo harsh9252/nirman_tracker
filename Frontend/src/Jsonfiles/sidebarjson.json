@@ -1,0 +1,66 @@
+{
+  "items": [
+    {
+      "key": "dashboard",
+      "label": "Dashboard",
+      "icon": "LayoutDashboard",
+      "path": "dashboard"
+    },
+    {
+      "key": "users",
+      "label": "Users",
+      "icon": "Users",
+      "path": "users-management"
+    },
+    {
+      "key": "clients",
+      "label": "Clients",
+      "icon": "UserCheck",
+      "path": "clients-management"
+    },
+    {
+      "key": "tasks",
+      "label": "My Tasks",
+      "icon": "ClipboardList",
+      "path": "my-tasks"
+    },
+    {
+      "key": "projects",
+      "label": "Projects",
+      "icon": "Folder",
+      "path": "projects-management"
+    },
+    {
+      "key": "reports",
+      "label": "Reports",
+      "icon": "BarChart3",
+      "path": "reports"
+    },
+    {
+      "key": "settings",
+      "label": "Settings",
+      "icon": "Settings",
+      "path": "settings"
+    }
+  ],
+  "footerItems": [
+    {
+      "key": "inventory",
+      "label": "Inventory",
+      "icon": "Boxes",
+      "path": "inventory"
+    },
+    {
+      "key": "reports",
+      "label": "Reports",
+      "icon": "BarChart3",
+      "path": "reports"
+    },
+    {
+      "key": "settings",
+      "label": "Settings",
+      "icon": "Settings",
+      "path": "settings"
+    }
+  ]
+}
