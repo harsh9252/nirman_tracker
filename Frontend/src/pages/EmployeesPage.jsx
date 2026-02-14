@@ -7,9 +7,16 @@ import EmployeeFormPopup from '../components/EmployeeFormPopup';
 import apiService from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from '../services/translationService.jsx';
+import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
 
 export default function EmployeesPage({ searchTerm = '' }) {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
+
+    // Check permissions
+    const canCreate = hasPermission('employees', 'create');
+    const canEdit = hasPermission('employees', 'edit');
+    const canDelete = hasPermission('employees', 'delete');
     const { t } = useTranslation();
     const [employeesData, setEmployeesData] = useState([]);
     const [selectedStatus, setSelectedStatus] = useState('All');
@@ -77,13 +84,24 @@ export default function EmployeesPage({ searchTerm = '' }) {
     };
 
     const handleDeleteRow = async (id) => {
-        if (window.confirm(t('Are you sure you want to delete this employee?'))) {
+        const result = await Swal.fire({
+            title: t('Are you sure?'),
+            text: t('This action cannot be undone.'),
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: t('Yes, delete it!')
+        });
+
+        if (result.isConfirmed) {
             try {
                 await apiService.deleteEmployee(id);
                 fetchEmployees();
+                toast.success(t('Employee deleted successfully'));
             } catch (error) {
                 console.error('Error deleting employee:', error);
-                alert(error.message || t('Failed to delete employee'));
+                toast.error(error.message || t('Failed to delete employee'));
             }
         }
     };
@@ -170,22 +188,29 @@ export default function EmployeesPage({ searchTerm = '' }) {
             case 'actions':
                 return (
                     <div className="flex justify-center gap-1 sm:gap-2">
-                        <TableActionButton
-                            icon={FaPencilAlt}
-                            type="edit"
-                            title={t("Edit")}
-                            onClick={() => handleEditRow(employee.id)}
-                            mobileSize={false}
-                            extraSmall={true}
-                        />
-                        <TableActionButton
-                            icon={FaTrash}
-                            type="delete"
-                            title={t("Delete")}
-                            onClick={() => handleDeleteRow(employee.id)}
-                            mobileSize={false}
-                            extraSmall={true}
-                        />
+                        {canEdit && (
+                            <TableActionButton
+                                icon={FaPencilAlt}
+                                type="edit"
+                                title={t("Edit")}
+                                onClick={() => handleEditRow(employee.id)}
+                                mobileSize={false}
+                                extraSmall={true}
+                            />
+                        )}
+                        {canDelete && (
+                            <TableActionButton
+                                icon={FaTrash}
+                                type="delete"
+                                title={t("Delete")}
+                                onClick={() => handleDeleteRow(employee.id)}
+                                mobileSize={false}
+                                extraSmall={true}
+                            />
+                        )}
+                        {!canEdit && !canDelete && (
+                            <span className="text-gray-400 text-[10px] italic">{t('No actions')}</span>
+                        )}
                     </div>
                 );
             default:
@@ -251,18 +276,20 @@ export default function EmployeesPage({ searchTerm = '' }) {
                                     </div>
                                 )}
                             </div>
-                            <button
-                                onClick={() => {
-                                    setIsEditMode(false);
-                                    setEmployeeToEdit(null);
-                                    setIsEmployeeFormOpen(true);
-                                }}
-                                className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm"
-                                style={{ backgroundColor: 'var(--primary-color)' }}
-                            >
-                                <FiPlus size={17} color="#ffffff" />
-                                <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>{t('New')}</span>
-                            </button>
+                            {canCreate && (
+                                <button
+                                    onClick={() => {
+                                        setIsEditMode(false);
+                                        setEmployeeToEdit(null);
+                                        setIsEmployeeFormOpen(true);
+                                    }}
+                                    className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm"
+                                    style={{ backgroundColor: 'var(--primary-color)' }}
+                                >
+                                    <FiPlus size={17} color="#ffffff" />
+                                    <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>{t('New')}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -300,18 +327,25 @@ export default function EmployeesPage({ searchTerm = '' }) {
                                             </div>
                                         </div>
                                         <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                                            <TableActionButton
-                                                icon={FaPencilAlt}
-                                                type="edit"
-                                                onClick={() => handleEditRow(employee.id)}
-                                                mobileSize={true}
-                                            />
-                                            <TableActionButton
-                                                icon={FaTrash}
-                                                type="delete"
-                                                onClick={() => handleDeleteRow(employee.id)}
-                                                mobileSize={true}
-                                            />
+                                            {canEdit && (
+                                                <TableActionButton
+                                                    icon={FaPencilAlt}
+                                                    type="edit"
+                                                    onClick={() => handleEditRow(employee.id)}
+                                                    mobileSize={true}
+                                                />
+                                            )}
+                                            {canDelete && (
+                                                <TableActionButton
+                                                    icon={FaTrash}
+                                                    type="delete"
+                                                    onClick={() => handleDeleteRow(employee.id)}
+                                                    mobileSize={true}
+                                                />
+                                            )}
+                                            {!canEdit && !canDelete && (
+                                                <span className="text-gray-400 text-[10px] italic">{t('No actions')}</span>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

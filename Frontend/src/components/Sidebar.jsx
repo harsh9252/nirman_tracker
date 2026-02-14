@@ -100,17 +100,46 @@ export default function Sidebar({ activeItem, onNavigate }) {
   let permissions;
   if (isAdmin) {
     // Admin sees everything
-    permissions = { leads: true, clients: true, projects: true, tasks: true, users: true };
+    permissions = {
+      leads: true,
+      clients: true,
+      projects: true,
+      tasks: true,
+      employees: true,
+      users: true
+    };
   } else {
     // Non-admin users: use their permissions from database
     // Default to all false - only show what's explicitly granted
-    const defaultPermissions = { leads: false, clients: false, projects: false, tasks: false, users: false };
+    const defaultPermissions = {
+      leads: { view: false },
+      clients: { view: false },
+      projects: { view: false },
+      tasks: { view: false },
+      employees: { view: false },
+      users: { view: false }
+    };
 
     const userPermissions = user?.permissions
       ? (typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions)
-      : defaultPermissions;
+      : {};
 
-    permissions = { ...defaultPermissions, ...userPermissions };
+    // Helper to get view permission
+    const hasView = (module) => {
+      const p = userPermissions[module];
+      if (typeof p === 'boolean') return p;
+      if (typeof p === 'object' && p !== null) return p.view === true;
+      return false;
+    };
+
+    permissions = {
+      leads: hasView('leads'),
+      clients: hasView('clients'),
+      projects: hasView('projects'),
+      tasks: hasView('tasks'),
+      employees: hasView('employees'),
+      users: hasView('users')
+    };
   }
 
   return (
@@ -164,18 +193,22 @@ export default function Sidebar({ activeItem, onNavigate }) {
             onClick={() => handleNavigate("projects-management")}
           />
         )}
-        <SidebarItem
-          icon={<FiUsers size={15} />}
-          label={t('Employees')}
-          active={activeItem === "employee-management"}
-          onClick={() => handleNavigate("employee-management")}
-        />
-        <SidebarItem
-          icon={<FiUser size={15} />}
-          label="Users"
-          active={activeItem === "users-management"}
-          onClick={() => handleNavigate("users-management")}
-        />
+        {permissions.employees && (
+          <SidebarItem
+            icon={<FiUsers size={15} />}
+            label={t('Employees')}
+            active={activeItem === "employee-management"}
+            onClick={() => handleNavigate("employee-management")}
+          />
+        )}
+        {permissions.users && (
+          <SidebarItem
+            icon={<FiUser size={15} />}
+            label="Users"
+            active={activeItem === "users-management"}
+            onClick={() => handleNavigate("users-management")}
+          />
+        )}
         {permissions.tasks && (
           <SidebarItem
             icon={<FiCheckSquare size={15} />}

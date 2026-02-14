@@ -12,7 +12,12 @@ import io from 'socket.io-client';
 import config from '../config/config';
 
 export default function TasksPage({ searchTerm = '' }) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+
+  // Check permissions
+  const canCreate = hasPermission('tasks', 'create');
+  const canEdit = hasPermission('tasks', 'edit');
+  const canDelete = hasPermission('tasks', 'delete');
   const location = useLocation();
   const { taskId } = useParams();
   const [highlightedTaskId, setHighlightedTaskId] = useState(null);
@@ -47,10 +52,10 @@ export default function TasksPage({ searchTerm = '' }) {
   const filterDropdownRef = useRef(null);
 
   useEffect(() => {
-  if (user) {
-    fetchTasks(user,  setLoading);
-  }
-}, [user]);
+    if (user) {
+      fetchTasks(user, setLoading);
+    }
+  }, [user]);
 
   // Reset selectedTask when navigating back to tasks page
   useEffect(() => {
@@ -317,24 +322,24 @@ export default function TasksPage({ searchTerm = '' }) {
 
   // ⬇️ Reusable function to fetch tasks
 
-const fetchTasks = async () => {
-  try {
-    // Always fetch all tasks for the current user (both assigned to and assigned by)
-    // The frontend filtering will handle the "My Tasks" vs "All Tasks" view
-    const params = { user_id: user.id };
+  const fetchTasks = async () => {
+    try {
+      // Always fetch all tasks for the current user (both assigned to and assigned by)
+      // The frontend filtering will handle the "My Tasks" vs "All Tasks" view
+      const params = { user_id: user.id };
 
-    console.log('TasksPage fetchTasks - User ID:', user?.id, 'params:', params);
+      console.log('TasksPage fetchTasks - User ID:', user?.id, 'params:', params);
 
-    const tasks = await apiService.getTasks(params);
-    const sortedTasks = tasks.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
-    setTasksData(sortedTasks);
-    console.log("Tasks fetched:", sortedTasks);
-  } catch (error) {
-    console.error("Error fetching tasks:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+      const tasks = await apiService.getTasks(params);
+      const sortedTasks = tasks.sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
+      setTasksData(sortedTasks);
+      console.log("Tasks fetched:", sortedTasks);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredTasks = tasksData.filter(task => {
     const matchesSearch = searchTerm === '' ||
@@ -434,7 +439,7 @@ const fetchTasks = async () => {
   const handleEditRow = (id) => {
     console.log('all tasks ========>', tasksData)
     const task = tasksData.find(t => t.id === id);
-    console.log('edit record=======>',task, task.dueDate)
+    console.log('edit record=======>', task, task.dueDate)
     setDueDates(task.dueDate || []);
     if (task) {
       setTaskToEdit(task);
@@ -530,11 +535,11 @@ const fetchTasks = async () => {
 
   const handleUpdateTask = async (updatedTask) => {
     console.log('----------before updated-----------------')
-    console.log("updated form data",updatedTask)
+    console.log("updated form data", updatedTask)
     try {
       const updatedTaskData = await apiService.updateTask(taskToEdit.id, updatedTask);
       // Don't update local state here - let Socket.IO handle real-time updates
-      console.log("updated form response",updatedTaskData)
+      console.log("updated form response", updatedTaskData)
       setIsTaskFormOpen(false); // Close the popup on success
       setIsEditMode(false);
       setTaskToEdit(null);
@@ -620,6 +625,35 @@ const fetchTasks = async () => {
         return formatDate(task.createdDate);
       case 'dueDate':
         return formatDate(task.dueDate);
+      case 'actions':
+        return (
+          <div className="flex justify-center gap-1 sm:gap-2">
+            {canEdit && (
+              <TableActionButton
+                icon={FiEdit2}
+                type="edit"
+                title="Edit"
+                onClick={() => handleEditRow(task.id)}
+                disabled={task.status === "Completed"}
+                mobileSize={false}
+                extraSmall={true}
+              />
+            )}
+            {canDelete && (
+              <TableActionButton
+                icon={FiTrash2}
+                type="delete"
+                title="Delete"
+                onClick={() => handleDeleteRow(task.id)}
+                mobileSize={false}
+                extraSmall={true}
+              />
+            )}
+            {!canEdit && !canDelete && (
+              <span className="text-gray-400 text-[10px] italic">No actions</span>
+            )}
+          </div>
+        );
       default:
         return task[key];
     }
@@ -673,11 +707,10 @@ const fetchTasks = async () => {
                                   setCurrentViewId(view.id);
                                   setIsViewDropdownOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2 py-1.5 text-left text-xs hover:bg-blue-50 transition-colors ${
-                                  currentViewId === view.id
-                                    ? "bg-blue-50 text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
+                                className={`w-full flex items-center justify-between px-2 py-1.5 text-left text-xs hover:bg-blue-50 transition-colors ${currentViewId === view.id
+                                  ? "bg-blue-50 text-blue-600 font-medium"
+                                  : "text-gray-700"
+                                  }`}
                               >
                                 <span>{view.id === 1 ? "All Tasks" : view.id === 2 ? "My Tasks" : view.name}</span>
                                 {currentViewId === view.id && (
@@ -705,9 +738,9 @@ const fetchTasks = async () => {
                           </div>
                           <span className="truncate" style={{ fontWeight: '400', padding: '0 3px' }}>
                             {selectedDateFilter === "All" ? "All Tasks" :
-                             selectedDateFilter === "Today" ? "Today's Task" :
-                             selectedDateFilter === "This Week" ? "This Week Task" :
-                             selectedDateFilter === "This Month" ? "This Month Task" : "All Tasks"}
+                              selectedDateFilter === "Today" ? "Today's Task" :
+                                selectedDateFilter === "This Week" ? "This Week Task" :
+                                  selectedDateFilter === "This Month" ? "This Month Task" : "All Tasks"}
                           </span>
                         </button>
                         {isDateFilterPopupOpen && (
@@ -724,11 +757,10 @@ const fetchTasks = async () => {
                                   setSelectedDateFilter(option.value);
                                   setIsDateFilterPopupOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2 py-1 text-left text-xs hover:bg-gray-50 transition-colors ${
-                                  selectedDateFilter === option.value
-                                    ? "text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
+                                className={`w-full flex items-center justify-between px-2 py-1 text-left text-xs hover:bg-gray-50 transition-colors ${selectedDateFilter === option.value
+                                  ? "text-blue-600 font-medium"
+                                  : "text-gray-700"
+                                  }`}
                               >
                                 <span>{option.label}</span>
                                 {selectedDateFilter === option.value && (
@@ -768,11 +800,10 @@ const fetchTasks = async () => {
                                   setSelectedStatus(option.value);
                                   setIsFilterPopupOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2 py-1 text-left text-xs hover:bg-gray-50 transition-colors ${
-                                  selectedStatus === option.value
-                                    ? "text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
+                                className={`w-full flex items-center justify-between px-2 py-1 text-left text-xs hover:bg-gray-50 transition-colors ${selectedStatus === option.value
+                                  ? "text-blue-600 font-medium"
+                                  : "text-gray-700"
+                                  }`}
                               >
                                 <span>{option.label}</span>
                                 {selectedStatus === option.value && (
@@ -785,21 +816,23 @@ const fetchTasks = async () => {
                       </div>
 
                       {/* New Task Button */}
-                      <div className="flex-shrink-0">
-                        <button
-                          onClick={() => setIsTaskFormOpen(true)}
-                          className="flex items-center justify-center px-2 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-sm"
-                          style={{
-                            backgroundColor: 'var(--primary-color)',
-                            borderColor: 'var(--primary-color)',
-                            height: '28px',
-                            fontSize: '10px'
-                          }}
-                        >
-                          <FiPlus size={12} color="#ffffff" />
-                          <span className="hidden" style={{ fontWeight: '400', lineHeight: '18px', marginLeft: '2px' }}>New</span>
-                        </button>
-                      </div>
+                      {canCreate && (
+                        <div className="flex-shrink-0">
+                          <button
+                            onClick={() => setIsTaskFormOpen(true)}
+                            className="flex items-center justify-center px-2 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-sm"
+                            style={{
+                              backgroundColor: 'var(--primary-color)',
+                              borderColor: 'var(--primary-color)',
+                              height: '28px',
+                              fontSize: '10px'
+                            }}
+                          >
+                            <FiPlus size={12} color="#ffffff" />
+                            <span className="hidden" style={{ fontWeight: '400', lineHeight: '18px', marginLeft: '2px' }}>New</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Desktop: Left Side - View Filter */}
@@ -830,11 +863,10 @@ const fetchTasks = async () => {
                                   setCurrentViewId(view.id);
                                   setIsViewDropdownOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-gray-50 transition-colors ${
-                                  currentViewId === view.id
-                                    ? "text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-gray-50 transition-colors ${currentViewId === view.id
+                                  ? "text-blue-600 font-medium"
+                                  : "text-gray-700"
+                                  }`}
                               >
                                 <span>{view.id === 1 ? "All Tasks" : view.id === 2 ? "My Tasks" : view.name}</span>
                                 {currentViewId === view.id && (
@@ -862,9 +894,9 @@ const fetchTasks = async () => {
                           </div>
                           <span className="truncate" style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px', padding: '0 8px' }}>
                             {selectedDateFilter === "All" ? "All Tasks" :
-                             selectedDateFilter === "Today" ? "Today's Task" :
-                             selectedDateFilter === "This Week" ? "This Week Task" :
-                             selectedDateFilter === "This Month" ? "This Month Task" : "All Tasks"}
+                              selectedDateFilter === "Today" ? "Today's Task" :
+                                selectedDateFilter === "This Week" ? "This Week Task" :
+                                  selectedDateFilter === "This Month" ? "This Month Task" : "All Tasks"}
                           </span>
                         </button>
                         {isDateFilterPopupOpen && (
@@ -881,11 +913,10 @@ const fetchTasks = async () => {
                                   setSelectedDateFilter(option.value);
                                   setIsDateFilterPopupOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-gray-50 transition-colors ${
-                                  selectedDateFilter === option.value
-                                    ? "text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-gray-50 transition-colors ${selectedDateFilter === option.value
+                                  ? "text-blue-600 font-medium"
+                                  : "text-gray-700"
+                                  }`}
                               >
                                 <span>{option.label}</span>
                                 {selectedDateFilter === option.value && (
@@ -910,11 +941,11 @@ const fetchTasks = async () => {
                           </div>
                           <span className="hidden sm:inline" style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px', padding: '0 8px' }}>
                             {selectedStatus === "All" ? "All Status" :
-                             selectedStatus === "New" ? "New" :
-                             selectedStatus === "Working" ? "Working" :
-                             selectedStatus === "Completed" ? "Completed" :
-                             selectedStatus === "On Hold" ? "On Hold" :
-                             selectedStatus === "Cancelled" ? "Cancelled" : "All Status"}
+                              selectedStatus === "New" ? "New" :
+                                selectedStatus === "Working" ? "Working" :
+                                  selectedStatus === "Completed" ? "Completed" :
+                                    selectedStatus === "On Hold" ? "On Hold" :
+                                      selectedStatus === "Cancelled" ? "Cancelled" : "All Status"}
                           </span>
                         </button>
                         {isFilterPopupOpen && (
@@ -933,11 +964,10 @@ const fetchTasks = async () => {
                                   setSelectedStatus(option.value);
                                   setIsFilterPopupOpen(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-gray-50 transition-colors ${
-                                  selectedStatus === option.value
-                                    ? "text-blue-600 font-medium"
-                                    : "text-gray-700"
-                                }`}
+                                className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-gray-50 transition-colors ${selectedStatus === option.value
+                                  ? "text-blue-600 font-medium"
+                                  : "text-gray-700"
+                                  }`}
                               >
                                 <span>{option.label}</span>
                                 {selectedStatus === option.value && (
@@ -950,17 +980,19 @@ const fetchTasks = async () => {
                       </div>
 
                       {/* New Task Button */}
-                      <button
-                        onClick={() => setIsTaskFormOpen(true)}
-                        className="flex items-center gap-1 px-2 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-sm"
-                        style={{
-                          backgroundColor: 'var(--primary-color)',
-                          borderColor: 'var(--primary-color)'
-                        }}
-                      >
-                        <FiPlus size={17} color="#ffffff" />
-                        <span className="hidden sm:inline" style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
-                      </button>
+                      {canCreate && (
+                        <button
+                          onClick={() => setIsTaskFormOpen(true)}
+                          className="flex items-center gap-1 px-2 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-sm"
+                          style={{
+                            backgroundColor: 'var(--primary-color)',
+                            borderColor: 'var(--primary-color)'
+                          }}
+                        >
+                          <FiPlus size={17} color="#ffffff" />
+                          <span className="hidden sm:inline" style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1030,28 +1062,29 @@ const fetchTasks = async () => {
                                 <span className="font-medium text-xs leading-tight mb-0.5">Due</span>
                                 <div className="flex items-center">
                                   <FiCalendar className="text-orange-500 flex-shrink-0 mr-0.5" size={8} />
-                                  <span className={`text-xs leading-tight ${
-                                    task.dueDate &&
+                                  <span className={`text-xs leading-tight ${task.dueDate &&
                                     new Date(task.dueDate) < new Date() &&
                                     task.status !== "Completed"
-                                      ? "text-red-600 font-medium"
-                                      : ""
-                                  }`}>
+                                    ? "text-red-600 font-medium"
+                                    : ""
+                                    }`}>
                                     {renderTaskCell('dueDate', task)}
                                   </span>
                                 </div>
                               </div>
                               <div className="flex flex-col items-end">
                                 <div className="flex items-center gap-1">
-                                  <TableActionButton
-                                    icon={FiEdit2}
-                                    type="edit"
-                                    title="Edit"
-                                    onClick={() => handleEditRow(task.id)}
-                                    disabled={task.status === "Completed"}
-                                    mobileSize={true}
-                                  />
-                                  {user?.role?.toLowerCase() === 'admin' && (
+                                  {canEdit && (
+                                    <TableActionButton
+                                      icon={FiEdit2}
+                                      type="edit"
+                                      title="Edit"
+                                      onClick={() => handleEditRow(task.id)}
+                                      disabled={task.status === "Completed"}
+                                      mobileSize={true}
+                                    />
+                                  )}
+                                  {canDelete && (
                                     <TableActionButton
                                       icon={FiTrash2}
                                       type="delete"
@@ -1059,6 +1092,9 @@ const fetchTasks = async () => {
                                       onClick={() => handleDeleteRow(task.id)}
                                       mobileSize={true}
                                     />
+                                  )}
+                                  {!canEdit && !canDelete && (
+                                    <span className="text-gray-400 text-[10px] italic">No actions</span>
                                   )}
                                 </div>
                               </div>
@@ -1177,11 +1213,10 @@ const fetchTasks = async () => {
               <button
                 onClick={confirmDelete}
                 disabled={!!deleteError}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  deleteError
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                    : 'bg-red-600 text-white hover:bg-red-700'
-                }`}
+                className={`px-4 py-2 rounded-lg transition-colors ${deleteError
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
                 style={{ fontFamily: 'var(--font-family)' }}
                 title={deleteError ? 'Cannot delete task with dependencies' : 'Delete this task'}
               >

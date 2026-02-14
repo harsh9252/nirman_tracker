@@ -177,6 +177,23 @@ export const AuthProvider = ({ children }) => {
     return !!token && !!user && !!user.isTempPassword;
   };
 
+  const hasPermission = (module, action) => {
+    if (user?.role?.toLowerCase() === 'admin') return true;
+    if (!user?.permissions) return false;
+
+    const perms = typeof user.permissions === 'string'
+      ? JSON.parse(user.permissions)
+      : user.permissions;
+
+    if (!perms[module]) return false;
+
+    // Support legacy boolean permissions (treat as full access if true)
+    if (typeof perms[module] === 'boolean') return perms[module];
+
+    // New nested structure: { projects: { view: true, create: false, ... } }
+    return perms[module]?.[action] === true;
+  };
+
   const value = {
     user,
     token,
@@ -187,7 +204,8 @@ export const AuthProvider = ({ children }) => {
     updateUser,
     hidePasswordChange,
     isAuthenticated,
-    requiresPasswordChange
+    requiresPasswordChange,
+    hasPermission
   };
 
   return (

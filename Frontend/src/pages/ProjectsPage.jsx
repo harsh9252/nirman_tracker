@@ -9,7 +9,12 @@ import apiService from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function ProjectsPage({ searchTerm = '' }) {
-    const { user } = useAuth();
+    const { user, hasPermission } = useAuth();
+
+    // Check permissions
+    const canCreate = hasPermission('projects', 'create');
+    const canEdit = hasPermission('projects', 'edit');
+    const canDelete = hasPermission('projects', 'delete');
     const [projectsData, setProjectsData] = useState([]);
     const [selectedStatus, setSelectedStatus] = useState('All');
     const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
@@ -175,22 +180,29 @@ export default function ProjectsPage({ searchTerm = '' }) {
             case 'actions':
                 return (
                     <div className="flex justify-center gap-1 sm:gap-2">
-                        <TableActionButton
-                            icon={FaPencilAlt}
-                            type="edit"
-                            title="Edit"
-                            onClick={() => handleEditRow(project.id)}
-                            mobileSize={false}
-                            extraSmall={true}
-                        />
-                        <TableActionButton
-                            icon={FaTrash}
-                            type="delete"
-                            title="Delete"
-                            onClick={() => handleDeleteRow(project.id)}
-                            mobileSize={false}
-                            extraSmall={true}
-                        />
+                        {canEdit && (
+                            <TableActionButton
+                                icon={FaPencilAlt}
+                                type="edit"
+                                title="Edit"
+                                onClick={() => handleEditRow(project.id)}
+                                mobileSize={false}
+                                extraSmall={true}
+                            />
+                        )}
+                        {canDelete && (
+                            <TableActionButton
+                                icon={FaTrash}
+                                type="delete"
+                                title="Delete"
+                                onClick={() => handleDeleteRow(project.id)}
+                                mobileSize={false}
+                                extraSmall={true}
+                            />
+                        )}
+                        {!canEdit && !canDelete && (
+                            <span className="text-gray-400 text-[10px] italic">No actions</span>
+                        )}
                     </div>
                 );
             default:
@@ -288,20 +300,22 @@ export default function ProjectsPage({ searchTerm = '' }) {
                                                 </div>
                                             )}
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                setIsEditMode(false);
-                                                setProjectToEdit(null);
-                                                setIsProjectFormOpen(true);
-                                            }}
-                                            className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm"
-                                            style={{
-                                                backgroundColor: 'var(--primary-color)'
-                                            }}
-                                        >
-                                            <FiPlus size={17} color="#ffffff" />
-                                            <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
-                                        </button>
+                                        {canCreate && (
+                                            <button
+                                                onClick={() => {
+                                                    setIsEditMode(false);
+                                                    setProjectToEdit(null);
+                                                    setIsProjectOpen(true);
+                                                }}
+                                                className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm"
+                                                style={{
+                                                    backgroundColor: 'var(--primary-color)'
+                                                }}
+                                            >
+                                                <FiPlus size={17} color="#ffffff" />
+                                                <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -332,20 +346,24 @@ export default function ProjectsPage({ searchTerm = '' }) {
                                                             </span>
                                                         </div>
                                                         <div className="flex gap-2 ml-3">
-                                                            <TableActionButton
-                                                                icon={FaPencilAlt}
-                                                                type="edit"
-                                                                title="Edit"
-                                                                onClick={() => handleEditRow(project.id)}
-                                                                mobileSize={true}
-                                                            />
-                                                            <TableActionButton
-                                                                icon={FaTrash}
-                                                                type="delete"
-                                                                title="Delete"
-                                                                onClick={() => handleDeleteRow(project.id)}
-                                                                mobileSize={true}
-                                                            />
+                                                            {canEdit && (
+                                                                <TableActionButton
+                                                                    icon={FaPencilAlt}
+                                                                    type="edit"
+                                                                    title="Edit"
+                                                                    onClick={() => handleEditRow(project.id)}
+                                                                    mobileSize={true}
+                                                                />
+                                                            )}
+                                                            {canDelete && (
+                                                                <TableActionButton
+                                                                    icon={FaTrash}
+                                                                    type="delete"
+                                                                    title="Delete"
+                                                                    onClick={() => handleDeleteRow(project.id)}
+                                                                    mobileSize={true}
+                                                                />
+                                                            )}
                                                         </div>
                                                     </div>
 

@@ -201,81 +201,170 @@ const PhoneField = ({ label, required, value, onChange, placeholder, error }) =>
 };
 
 // Permissions Field Component
-const PermissionsField = ({ label, permissions, onChange }) => {
+const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isProjectOpen, setIsProjectOpen] = useState(false);
   const selectRef = useRef(null);
+  const projectRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (isOpen && selectRef.current && !selectRef.current.contains(e.target)) {
         setIsOpen(false);
       }
+      if (isProjectOpen && projectRef.current && !projectRef.current.contains(e.target)) {
+        setIsProjectOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, isProjectOpen]);
 
-  const togglePermission = (key) => {
-    onChange({ ...permissions, [key]: !permissions[key] });
+  const toggleAction = (moduleKey, action) => {
+    const modulePermissions = permissions[moduleKey] || { view: false, create: false, edit: false, delete: false };
+    onChange({
+      ...permissions,
+      [moduleKey]: {
+        ...modulePermissions,
+        [action]: !modulePermissions[action]
+      }
+    });
   };
 
-  const selectedCount = Object.values(permissions).filter(Boolean).length;
-  const displayText = selectedCount === 5
-    ? "All Sections"
-    : selectedCount === 0
-      ? "No Access"
-      : `${selectedCount} Section${selectedCount > 1 ? 's' : ''} Selected`;
+  const toggleProject = (projectId) => {
+    const projectsPermissions = permissions.projects || { view: false, create: false, edit: false, delete: false, accessible_projects: [] };
+    const currentAccessible = Array.isArray(projectsPermissions.accessible_projects) ? projectsPermissions.accessible_projects : [];
+
+    let newAccessible;
+    if (currentAccessible.includes(projectId)) {
+      newAccessible = currentAccessible.filter(id => id !== projectId);
+    } else {
+      newAccessible = [...currentAccessible, projectId];
+    }
+
+    onChange({
+      ...permissions,
+      projects: {
+        ...projectsPermissions,
+        accessible_projects: newAccessible
+      }
+    });
+  };
+
+  const modules = [
+    { key: 'leads', label: 'Leads' },
+    { key: 'clients', label: 'Clients' },
+    { key: 'projects', label: 'Projects' },
+    { key: 'tasks', label: 'Tasks' },
+    { key: 'employees', label: 'Employees' },
+    { key: 'users', label: 'Users' }
+  ];
+
+  const actions = ['view', 'create', 'edit', 'delete'];
+
+  const getProjectName = (id) => {
+    const project = projects.find(p => p.id === id);
+    return project ? project.project_name : `Project #${id}`;
+  };
+
+  const selectedProjects = permissions.projects?.accessible_projects || [];
 
   return (
-    <div ref={selectRef} className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-      <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-        {label}
-      </label>
-      <div
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          width: '100%',
-          height: 'var(--input-height)',
-          padding: 'var(--input-padding)',
-          paddingTop: '16px',
-          paddingLeft: '12px',
-          fontSize: 'var(--placeholder-font-size)',
-          fontFamily: 'var(--font-family)',
-          border: '1px solid var(--input-border-color)',
-          borderRadius: 'var(--input-border-radius)',
-          backgroundColor: 'var(--input-bg-color)',
-          color: 'var(--input-text-color)',
-          outline: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          transition: 'border-color 0.2s',
-        }}
-      >
-        <span style={{ fontSize: 'var(--placeholder-font-size)', fontFamily: 'var(--font-family)' }}>
-          {displayText}
-        </span>
-        <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-        </svg>
-      </div>
-      {isOpen && (
-        <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 w-full mt-1">
-          {[
-            { key: 'leads', label: 'Leads Management' },
-            { key: 'clients', label: 'Clients Management' },
-            { key: 'projects', label: 'Projects Management' },
-            { key: 'tasks', label: 'Tasks Management' },
-            { key: 'users', label: 'Users Management' }
-          ].map((item, index) => (
-            <div key={item.key} onClick={() => togglePermission(item.key)} style={{ padding: '8px 12px', fontSize: 'var(--placeholder-font-size)', fontFamily: 'var(--font-family)', cursor: 'pointer', backgroundColor: '#ffffff', borderBottom: index < 4 ? '1px solid #f1f5f9' : 'none', display: 'flex', alignItems: 'center', gap: '8px' }} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}>
-              <input type="checkbox" checked={permissions[item.key]} onChange={() => { }} className="w-4 h-4 text-blue-600 border-gray-300 rounded pointer-events-none" />
-              <span>{item.label}</span>
-            </div>
-          ))}
+    <div className="space-y-6">
+      <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-gray-50/30">
+        <div className="bg-gray-100/80 px-4 py-2 border-b border-gray-200">
+          <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest" style={{ fontFamily: 'var(--font-family)' }}>
+            Module-Level Permissions
+          </h3>
         </div>
-      )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)' }}>Module</th>
+                {actions.map(action => (
+                  <th key={action} className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ fontFamily: 'var(--font-family)' }}>
+                    {action}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {modules.map((module, idx) => (
+                <tr key={module.key} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} border-b border-gray-100 last:border-0`}>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-700" style={{ fontFamily: 'var(--font-family)' }}>{module.label}</td>
+                  {actions.map(action => (
+                    <td key={action} className="px-4 py-3 text-center">
+                      <div className="flex justify-center">
+                        <input
+                          type="checkbox"
+                          checked={permissions[module.key]?.[action] || false}
+                          onChange={() => toggleAction(module.key, action)}
+                          className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary transition-all cursor-pointer"
+                        />
+                      </div>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div ref={projectRef} className="relative">
+        <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
+          Assigned Projects Access
+        </label>
+        <div
+          onClick={() => setIsProjectOpen(!isProjectOpen)}
+          className={`min-h-[48px] px-3 py-2 border border-gray-300 rounded-xl bg-white flex flex-wrap gap-1.5 items-center cursor-pointer hover:border-primary transition-all shadow-sm ${isProjectOpen ? 'ring-1 ring-primary border-primary' : ''}`}
+        >
+          {selectedProjects.length === 0 ? (
+            <span className="text-gray-400 text-sm" style={{ fontFamily: 'var(--font-family)' }}>Select projects user can access...</span>
+          ) : (
+            selectedProjects.map(id => (
+              <span key={id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-primary border border-blue-100 rounded-lg text-xs font-medium">
+                {getProjectName(id)}
+                <FiX
+                  size={12}
+                  className="hover:text-red-500 transition-colors"
+                  onClick={(e) => { e.stopPropagation(); toggleProject(id); }}
+                />
+              </span>
+            ))
+          )}
+        </div>
+
+        {isProjectOpen && (
+          <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-[60] max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+            {projects.length === 0 ? (
+              <div className="p-4 text-center text-sm text-gray-500">No projects found</div>
+            ) : (
+              <div className="py-1">
+                {projects.map((project) => (
+                  <div
+                    key={project.id}
+                    onClick={() => toggleProject(project.id)}
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer group"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedProjects.includes(project.id)}
+                      readOnly
+                      className="w-4 h-4 text-primary border-gray-300 rounded group-hover:border-primary transition-all"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-700">{project.project_name}</span>
+                      <span className="text-[10px] text-gray-400 uppercase tracking-wider">{project.client_name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -289,22 +378,79 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("Active");
+  const [projects, setProjects] = useState([]);
   const [permissions, setPermissions] = useState({
-    leads: false,
-    clients: false,
-    projects: false,
-    tasks: false,
-    users: false
+    leads: { view: false, create: false, edit: false, delete: false },
+    clients: { view: false, create: false, edit: false, delete: false },
+    projects: { view: false, create: false, edit: false, delete: false, accessible_projects: [] },
+    tasks: { view: false, create: false, edit: false, delete: false },
+    employees: { view: false, create: false, edit: false, delete: false },
+    users: { view: false, create: false, edit: false, delete: false }
   });
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showErrorMessage, setShowErrorMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Fetch projects for access control
+  useEffect(() => {
+    if (isOpen) {
+      const fetchProjects = async () => {
+        try {
+          const data = await apiService.getProjects();
+          setProjects(data || []);
+        } catch (error) {
+          console.error("Error fetching projects for permissions:", error);
+        }
+      };
+      fetchProjects();
+    }
+  }, [isOpen]);
+
   // RBAC: Check if non-admin is editing their own profile
   const isNonAdminEditingSelf = editUser &&
     loggedInUser?.role?.toLowerCase() !== 'admin' &&
     loggedInUser?.id === editUser.id;
+
+  // Function to initialize permissions with nested structure
+  const initializePermissions = (userPerms) => {
+    const defaultPerms = {
+      leads: { view: false, create: false, edit: false, delete: false },
+      clients: { view: false, create: false, edit: false, delete: false },
+      projects: { view: false, create: false, edit: false, delete: false, accessible_projects: [] },
+      tasks: { view: false, create: false, edit: false, delete: false },
+      employees: { view: false, create: false, edit: false, delete: false },
+      users: { view: false, create: false, edit: false, delete: false }
+    };
+
+    if (!userPerms) return defaultPerms;
+
+    const parsedPerms = typeof userPerms === 'string' ? JSON.parse(userPerms) : userPerms;
+
+    // Support legacy flat permissions and upgrade them
+    const modules = ['leads', 'clients', 'projects', 'tasks', 'users', 'employees'];
+    const upgradedPerms = { ...defaultPerms };
+
+    modules.forEach(module => {
+      if (parsedPerms[module]) {
+        if (typeof parsedPerms[module] === 'boolean') {
+          // Legacy: { projects: true } -> { projects: { view: true, create: true, edit: true, delete: true } }
+          upgradedPerms[module] = {
+            view: parsedPerms[module],
+            create: parsedPerms[module],
+            edit: parsedPerms[module],
+            delete: parsedPerms[module]
+          };
+          if (module === 'projects') upgradedPerms.projects.accessible_projects = [];
+        } else {
+          // New nested structure, just merge with default to ensure all actions exist
+          upgradedPerms[module] = { ...defaultPerms[module], ...parsedPerms[module] };
+        }
+      }
+    });
+
+    return upgradedPerms;
+  };
 
   // Populate form when editing
   useEffect(() => {
@@ -316,22 +462,9 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
       setPhone(editUser.phone || "");
       setRole(editUser.role || "");
       setStatus(editUser.status || "Active");
-      // Load permissions if they exist
-      if (editUser.permissions) {
-        const perms = typeof editUser.permissions === 'string'
-          ? JSON.parse(editUser.permissions)
-          : editUser.permissions;
-        setPermissions(perms);
-      } else {
-        // Default permissions for existing users without permissions
-        setPermissions({
-          leads: false,
-          clients: false,
-          projects: false,
-          tasks: false,
-          users: false
-        });
-      }
+
+      setPermissions(initializePermissions(editUser.permissions));
+
       // Clear any previous error messages when reopening for edit
       setShowErrorMessage(false);
       setErrorMessage("");
@@ -356,11 +489,12 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
     setRole("");
     setStatus("Active");
     setPermissions({
-      leads: false,
-      clients: false,
-      projects: false,
-      tasks: false,
-      users: false
+      leads: { view: false, create: false, edit: false, delete: false },
+      clients: { view: false, create: false, edit: false, delete: false },
+      projects: { view: false, create: false, edit: false, delete: false, accessible_projects: [] },
+      tasks: { view: false, create: false, edit: false, delete: false },
+      employees: { view: false, create: false, edit: false, delete: false },
+      users: { view: false, create: false, edit: false, delete: false }
     });
   };
 
@@ -580,6 +714,7 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
                 label="ACCESS PERMISSIONS"
                 permissions={permissions}
                 onChange={setPermissions}
+                projects={projects}
               />
             </div>
           </div>

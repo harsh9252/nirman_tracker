@@ -231,6 +231,17 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
         }
     };
 
+    const getCompletionPercentage = (status) => {
+        switch (status) {
+            case "Planning": return 10;
+            case "In Progress": return 50;
+            case "On Hold": return 50;
+            case "Completed": return 100;
+            case "Cancelled": return 0;
+            default: return 0;
+        }
+    };
+
     const startEditing = () => {
         setEditedData({
             project_name: selectedProject.project_name,
@@ -393,12 +404,12 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                 <div className="flex-1">
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-semibold text-blue-900 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)' }}>Project Completion</span>
-                                        <span className="text-xl font-bold text-blue-700" style={{ fontFamily: 'var(--font-family)' }}>0%</span>
+                                        <span className="text-xl font-bold text-blue-700" style={{ fontFamily: 'var(--font-family)' }}>{getCompletionPercentage(selectedProject.status)}%</span>
                                     </div>
                                     <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
                                         <div
                                             className="bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out"
-                                            style={{ width: '0%' }}
+                                            style={{ width: `${getCompletionPercentage(selectedProject.status)}%` }}
                                         />
                                     </div>
                                     <p className="text-xs text-blue-600 mt-2 font-medium" style={{ fontFamily: 'var(--font-family)' }}>Project is currently in {selectedProject.status} phase</p>

@@ -2,8 +2,8 @@ const db = require('../config/database');
 
 class Project {
     // Get all projects with client information
-    static getAll(callback) {
-        const sql = `
+    static getAll(user, callback) {
+        let sql = `
             SELECT 
                 p.*,
                 c.client_name,
@@ -13,14 +13,35 @@ class Project {
             FROM projects p
             LEFT JOIN clients c ON p.client_id = c.id
             LEFT JOIN users u ON p.created_by = u.id
-            ORDER BY p.created_at DESC
         `;
-        db.query(sql, callback);
+
+        const values = [];
+
+        // RBAC: Filter for non-admin users
+        if (user && user.role.toLowerCase() !== 'admin') {
+            const permissions = typeof user.permissions === 'string'
+                ? JSON.parse(user.permissions)
+                : user.permissions;
+
+            if (permissions && permissions.projects && Array.isArray(permissions.projects.accessible_projects)) {
+                const accessibleProjects = permissions.projects.accessible_projects;
+                if (accessibleProjects.length > 0) {
+                    sql += ` WHERE p.id IN (?)`;
+                    values.push(accessibleProjects);
+                } else {
+                    // No accessible projects assigned
+                    sql += ` WHERE 1=0`;
+                }
+            }
+        }
+
+        sql += ` ORDER BY p.created_at DESC`;
+        db.query(sql, values, callback);
     }
 
     // Get project by ID
-    static getById(id, callback) {
-        const sql = `
+    static getById(id, user, callback) {
+        let sql = `
             SELECT 
                 p.*,
                 c.client_name,
@@ -34,12 +55,30 @@ class Project {
             LEFT JOIN users u ON p.created_by = u.id
             WHERE p.id = ?
         `;
-        db.query(sql, [id], callback);
+
+        const values = [id];
+
+        // RBAC: Verify access for non-admin users
+        if (user && user.role.toLowerCase() !== 'admin') {
+            const permissions = typeof user.permissions === 'string'
+                ? JSON.parse(user.permissions)
+                : user.permissions;
+
+            if (permissions && permissions.projects && Array.isArray(permissions.projects.accessible_projects)) {
+                const accessibleProjects = permissions.projects.accessible_projects;
+                if (!accessibleProjects.includes(parseInt(id))) {
+                    // Force no results if project is not in accessible list
+                    sql += ` AND 1=0`;
+                }
+            }
+        }
+
+        db.query(sql, values, callback);
     }
 
     // Get all projects for a specific client
-    static getByClientId(clientId, callback) {
-        const sql = `
+    static getByClientId(clientId, user, callback) {
+        let sql = `
             SELECT 
                 p.*,
                 c.client_name,
@@ -50,9 +89,29 @@ class Project {
             LEFT JOIN clients c ON p.client_id = c.id
             LEFT JOIN users u ON p.created_by = u.id
             WHERE p.client_id = ?
-            ORDER BY p.created_at DESC
         `;
-        db.query(sql, [clientId], callback);
+
+        const values = [clientId];
+
+        // RBAC: Filter for non-admin users
+        if (user && user.role.toLowerCase() !== 'admin') {
+            const permissions = typeof user.permissions === 'string'
+                ? JSON.parse(user.permissions)
+                : user.permissions;
+
+            if (permissions && permissions.projects && Array.isArray(permissions.projects.accessible_projects)) {
+                const accessibleProjects = permissions.projects.accessible_projects;
+                if (accessibleProjects.length > 0) {
+                    sql += ` AND p.id IN (?)`;
+                    values.push(accessibleProjects);
+                } else {
+                    sql += ` AND 1=0`;
+                }
+            }
+        }
+
+        sql += ` ORDER BY p.created_at DESC`;
+        db.query(sql, values, callback);
     }
 
     // Create new project
@@ -155,8 +214,8 @@ class Project {
     }
 
     // Get project statistics
-    static getStats(callback) {
-        const sql = `
+    static getStats(user, callback) {
+        let sql = `
             SELECT 
                 COUNT(*) as total_projects,
                 SUM(CASE WHEN status = 'Planning' THEN 1 ELSE 0 END) as planning_count,
@@ -166,9 +225,29 @@ class Project {
                 SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) as cancelled_count,
                 SUM(estimated_budget) as total_estimated_budget,
                 SUM(actual_cost) as total_actual_cost
-            FROM projects
+            FROM projects p
         `;
-        db.query(sql, callback);
+
+        const values = [];
+
+        // RBAC: Filter for non-admin users
+        if (user && user.role.toLowerCase() !== 'admin') {
+            const permissions = typeof user.permissions === 'string'
+                ? JSON.parse(user.permissions)
+                : user.permissions;
+
+            if (permissions && permissions.projects && Array.isArray(permissions.projects.accessible_projects)) {
+                const accessibleProjects = permissions.projects.accessible_projects;
+                if (accessibleProjects.length > 0) {
+                    sql += ` WHERE p.id IN (?)`;
+                    values.push(accessibleProjects);
+                } else {
+                    sql += ` WHERE 1=0`;
+                }
+            }
+        }
+
+        db.query(sql, values, callback);
     }
 }
 

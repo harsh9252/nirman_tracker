@@ -1,16 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const employeeController = require('../controllers/employeeController');
 const { verifyToken } = require('../middlewares/auth');
+const { checkPermission } = require('../middlewares/permission');
+const employeeController = require('../controllers/employeeController');
 
 // All routes require authentication
 router.use(verifyToken);
 
-router.get('/', employeeController.getAllEmployees);
-router.get('/:id', employeeController.getEmployeeById);
-router.post('/', employeeController.createEmployee);
-router.put('/:id', employeeController.updateEmployee);
-router.get('/project/:projectId', employeeController.getEmployeesByProject);
-router.delete('/:id', employeeController.deleteEmployee);
+router.get('/', checkPermission('employees', 'view'), employeeController.getAllEmployees);
+router.get('/:id', checkPermission('employees', 'view'), employeeController.getEmployeeById);
+router.post('/', checkPermission('employees', 'create'), employeeController.createEmployee);
+router.put('/:id', checkPermission('employees', 'edit'), employeeController.updateEmployee);
+router.get('/project/:projectId', checkPermission('employees', 'view'), employeeController.getEmployeesByProject);
+router.delete('/:id', checkPermission('employees', 'delete'), employeeController.deleteEmployee);
 
 module.exports = router;

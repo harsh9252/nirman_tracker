@@ -3,7 +3,7 @@ const Project = require('../models/Project');
 class ProjectController {
     // Get all projects
     static getAllProjects(req, res) {
-        Project.getAll((err, results) => {
+        Project.getAll(req.user, (err, results) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
@@ -15,7 +15,7 @@ class ProjectController {
     static getProjectById(req, res) {
         const { id } = req.params;
 
-        Project.getById(id, (err, results) => {
+        Project.getById(id, req.user, (err, results) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
@@ -32,7 +32,7 @@ class ProjectController {
     static getProjectsByClient(req, res) {
         const { clientId } = req.params;
 
-        Project.getByClientId(clientId, (err, results) => {
+        Project.getByClientId(clientId, req.user, (err, results) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
@@ -43,6 +43,9 @@ class ProjectController {
     // Create new project
     static createProject(req, res) {
         const projectData = req.body;
+
+        // Automatically set created_by from authenticated user
+        projectData.created_by = req.user.id;
 
         // Validate required fields
         if (!projectData.project_name || !projectData.client_id || !projectData.start_date) {
@@ -100,7 +103,7 @@ class ProjectController {
 
     // Get project statistics
     static getProjectStats(req, res) {
-        Project.getStats((err, results) => {
+        Project.getStats(req.user, (err, results) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }

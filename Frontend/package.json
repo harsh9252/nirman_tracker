@@ -15,7 +15,8 @@
     "react-router-dom": "^6.30.2",
     "react-toastify": "^10.0.5",
     "recharts": "^3.5.1",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "sweetalert2": "^11.26.18"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",

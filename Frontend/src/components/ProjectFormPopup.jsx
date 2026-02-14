@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FiX } from 'react-icons/fi';
 import apiService from '../services/api';
+import { toast } from 'react-toastify';
 
 // InputField component matching LeadFormPopup style
 const InputField = ({ label, required, type = "text", value, onChange, placeholder, helperText, helperTextColor, ...rest }) => (
@@ -360,13 +361,13 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                 console.log('Project created:', result);
             }
 
-            alert(editProject ? 'Project updated successfully!' : 'Project created successfully!');
+            toast.success(editProject ? 'Project updated successfully!' : 'Project created successfully!');
 
             if (onSubmit) onSubmit();
             onClose();
         } catch (error) {
             console.error('Error saving project:', error);
-            alert(error.message || 'Failed to save project');
+            toast.error(error.message || 'Failed to save project');
         } finally {
             setIsSubmitting(false);
         }

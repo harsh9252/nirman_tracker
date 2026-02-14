@@ -9,7 +9,12 @@ import apiService from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function LeadsPage({ searchTerm = '' }) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+
+  // Check permissions
+  const canCreate = hasPermission('leads', 'create');
+  const canEdit = hasPermission('leads', 'edit');
+  const canDelete = hasPermission('leads', 'delete');
   const [leadsData, setLeadsData] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
@@ -229,15 +234,31 @@ export default function LeadsPage({ searchTerm = '' }) {
       case 'actions':
         return (
           <div className="flex justify-center gap-1 sm:gap-2">
-            <TableActionButton
-              icon={FaPencilAlt}
-              type="edit"
-              title={lead.is_converted ? "Cannot edit converted lead" : lead.is_lost ? "Cannot edit lost lead" : "Edit"}
-              onClick={() => handleEditRow(lead.id)}
-              disabled={lead.is_converted || lead.is_lost}
-              mobileSize={false}
-              extraSmall={true}
-            />
+            {canEdit && (
+              <TableActionButton
+                icon={FaPencilAlt}
+                type="edit"
+                title={lead.is_converted ? "Cannot edit converted lead" : lead.is_lost ? "Cannot edit lost lead" : "Edit"}
+                onClick={() => handleEditRow(lead.id)}
+                disabled={lead.is_converted || lead.is_lost}
+                mobileSize={false}
+                extraSmall={true}
+              />
+            )}
+            {canDelete && (
+              <TableActionButton
+                icon={FaTrash}
+                type="delete"
+                title={lead.is_converted ? "Cannot delete converted lead" : lead.is_lost ? "Cannot delete lost lead" : "Delete"}
+                onClick={() => handleDeleteRow(lead.id)}
+                disabled={lead.is_converted || lead.is_lost}
+                mobileSize={false}
+                extraSmall={true}
+              />
+            )}
+            {!canEdit && !canDelete && (
+              <span className="text-gray-400 text-[10px] italic">No actions</span>
+            )}
           </div>
         );
       default:
@@ -257,19 +278,21 @@ export default function LeadsPage({ searchTerm = '' }) {
                 <div className="hidden sm:flex items-center gap-3 mb-3 sm:mb-0">
                 </div>
                 <div className="flex items-center justify-end gap-2 w-full sm:w-auto py-0">
-                  <button
-                    onClick={() => setIsUploadPopupOpen(true)}
-                    className="flex items-center gap-0 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 active:shadow-md transition-all shadow-sm"
-                    style={{ height: '30px' }}
-                    title="Upload Excel File"
-                  >
-                    <div className="flex items-center justify-center w-7 h-full bg-gray-100 rounded-l-lg border-r border-gray-300">
-                      <FiUpload size={14} />
-                    </div>
-                    <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px', padding: '0 8px' }}>
-                      Upload
-                    </span>
-                  </button>
+                  {canCreate && (
+                    <button
+                      onClick={() => setIsUploadPopupOpen(true)}
+                      className="flex items-center gap-0 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 active:shadow-md transition-all shadow-sm"
+                      style={{ height: '30px' }}
+                      title="Upload Excel File"
+                    >
+                      <div className="flex items-center justify-center w-7 h-full bg-gray-100 rounded-l-lg border-r border-gray-300">
+                        <FiUpload size={14} />
+                      </div>
+                      <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px', padding: '0 8px' }}>
+                        Upload
+                      </span>
+                    </button>
+                  )}
                   <div className="relative">
                     <button
                       onClick={() => setIsFilterPopupOpen(!isFilterPopupOpen)}
@@ -317,21 +340,23 @@ export default function LeadsPage({ searchTerm = '' }) {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => {
-                      setIsEdit(false);
-                      setEditLead(null);
-                      setIsLeadFormOpen(true);
-                    }}
-                    className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm whitespace-nowrap"
-                    style={{
-                      backgroundColor: 'var(--primary-color)',
-                      minWidth: 'fit-content'
-                    }}
-                  >
-                    <FiPlus size={17} color="#ffffff" />
-                    <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
-                  </button>
+                  {canCreate && (
+                    <button
+                      onClick={() => {
+                        setIsEdit(false);
+                        setEditLead(null);
+                        setIsLeadFormOpen(true);
+                      }}
+                      className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm whitespace-nowrap"
+                      style={{
+                        backgroundColor: 'var(--primary-color)',
+                        minWidth: 'fit-content'
+                      }}
+                    >
+                      <FiPlus size={17} color="#ffffff" />
+                      <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -356,14 +381,26 @@ export default function LeadsPage({ searchTerm = '' }) {
                             </span>
                           </div>
                           <div className="flex gap-2 ml-3">
-                            <TableActionButton
-                              icon={FaPencilAlt}
-                              type="edit"
-                              title={lead.is_converted ? "Cannot edit converted lead" : lead.is_lost ? "Cannot edit lost lead" : "Edit"}
-                              onClick={() => handleEditRow(lead.id)}
-                              disabled={lead.is_converted || lead.is_lost}
-                              mobileSize={true}
-                            />
+                            {canEdit && (
+                              <TableActionButton
+                                icon={FaPencilAlt}
+                                type="edit"
+                                title={lead.is_converted ? "Cannot edit converted lead" : lead.is_lost ? "Cannot edit lost lead" : "Edit"}
+                                onClick={() => handleEditRow(lead.id)}
+                                disabled={lead.is_converted || lead.is_lost}
+                                mobileSize={true}
+                              />
+                            )}
+                            {canDelete && (
+                              <TableActionButton
+                                icon={FaTrash}
+                                type="delete"
+                                title={lead.is_converted ? "Cannot delete converted lead" : lead.is_lost ? "Cannot delete lost lead" : "Delete"}
+                                onClick={() => handleDeleteRow(lead.id)}
+                                disabled={lead.is_converted || lead.is_lost}
+                                mobileSize={true}
+                              />
+                            )}
                           </div>
                         </div>
 

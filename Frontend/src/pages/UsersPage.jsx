@@ -11,7 +11,12 @@ import { formatDateForDisplay } from "../utils/dateUtils.jsx";
 import apiService from "../services/api";
 
 export default function UsersPage({ searchTerm = '' }) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+
+  // Check permissions
+  const canCreate = hasPermission('users', 'create');
+  const canEdit = hasPermission('users', 'edit');
+  const canDelete = hasPermission('users', 'delete');
 
   const currentUserName = user ? `${user.firstName} ${user.lastName}` : "Admin";
   const [usersData, setUsersData] = useState([]);
@@ -75,9 +80,12 @@ export default function UsersPage({ searchTerm = '' }) {
   };
 
   const filteredUsers = usersData.filter(userItem => {
-    // RBAC: Non-admin users can only see themselves
-    if (user?.role?.toLowerCase() !== 'admin') {
-      if (userItem.id !== user.id) {
+    // RBAC check
+    const canViewAllUsers = hasPermission('users', 'view');
+
+    if (!canViewAllUsers) {
+      // If not admin and doesn't have explicit view permission, only show themselves
+      if (userItem.id !== user?.id) {
         return false;
       }
     }
@@ -337,20 +345,27 @@ export default function UsersPage({ searchTerm = '' }) {
       case 'actions':
         return (
           <div className="flex justify-center gap-2">
-            <TableActionButton
-              icon={FaPencilAlt}
-              type="edit"
-              title="Edit"
-              onClick={() => handleEditRow(user.id)}
-              extraSmall={true}
-            />
-            <TableActionButton
-              icon={FaTrash}
-              type="delete"
-              title="Delete"
-              onClick={() => handleDeleteRow(user.id)}
-              extraSmall={true}
-            />
+            {canEdit && (
+              <TableActionButton
+                icon={FaPencilAlt}
+                type="edit"
+                title="Edit"
+                onClick={() => handleEditRow(user.id)}
+                extraSmall={true}
+              />
+            )}
+            {canDelete && (
+              <TableActionButton
+                icon={FaTrash}
+                type="delete"
+                title="Delete"
+                onClick={() => handleDeleteRow(user.id)}
+                extraSmall={true}
+              />
+            )}
+            {!canEdit && !canDelete && (
+              <span className="text-gray-400 text-[10px] italic">No actions</span>
+            )}
           </div>
         );
       default:
@@ -436,7 +451,7 @@ export default function UsersPage({ searchTerm = '' }) {
 
                       {/* New User Button */}
                       <div className="flex-shrink-0">
-                        {user?.role?.toLowerCase() === 'admin' && (
+                        {canCreate && (
                           <button
                             onClick={() => setIsUserFormOpen(true)}
                             className="flex items-center gap-1 px-2 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-sm"
@@ -505,7 +520,7 @@ export default function UsersPage({ searchTerm = '' }) {
                       </div>
 
                       {/* New User Button */}
-                      {user?.role?.toLowerCase() === 'admin' && (
+                      {canCreate && (
                         <button
                           onClick={() => setIsUserFormOpen(true)}
                           className="flex items-center gap-1 px-2 py-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all shadow-sm"
@@ -587,20 +602,27 @@ export default function UsersPage({ searchTerm = '' }) {
                                 <span style={{ fontFamily: 'var(--font-family)' }}>Role: {user.role}</span>
                               </div>
                               <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                                <TableActionButton
-                                  icon={FaPencilAlt}
-                                  type="edit"
-                                  title="Edit"
-                                  onClick={() => handleEditRow(user.id)}
-                                  mobileSize={true}
-                                />
-                                <TableActionButton
-                                  icon={FaTrash}
-                                  type="delete"
-                                  title="Delete"
-                                  onClick={() => handleDeleteRow(user.id)}
-                                  mobileSize={true}
-                                />
+                                {canEdit && (
+                                  <TableActionButton
+                                    icon={FaPencilAlt}
+                                    type="edit"
+                                    title="Edit"
+                                    onClick={() => handleEditRow(user.id)}
+                                    mobileSize={true}
+                                  />
+                                )}
+                                {canDelete && (
+                                  <TableActionButton
+                                    icon={FaTrash}
+                                    type="delete"
+                                    title="Delete"
+                                    onClick={() => handleDeleteRow(user.id)}
+                                    mobileSize={true}
+                                  />
+                                )}
+                                {!canEdit && !canDelete && (
+                                  <span className="text-gray-400 text-[10px] italic">No actions</span>
+                                )}
                               </div>
                             </div>
                           </div>

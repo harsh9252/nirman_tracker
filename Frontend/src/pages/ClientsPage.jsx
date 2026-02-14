@@ -7,8 +7,18 @@ import ClientFormPopup from "../components/ClientFormPopup";
 import ClientInfo from "../components/ClientInfo";
 import ProjectFormPopup from "../components/ProjectFormPopup";
 import apiService from "../services/api";
+import Swal from "sweetalert2";
+import { toast } from "react-toastify";
+
+import { useAuth } from "../contexts/AuthContext";
 
 export default function ClientsPage({ searchTerm = '' }) {
+  const { user, hasPermission } = useAuth();
+
+  // Check permissions
+  const canCreate = hasPermission('clients', 'create');
+  const canEdit = hasPermission('clients', 'edit');
+  const canDelete = hasPermission('clients', 'delete');
   const [clientsData, setClientsData] = useState([]);
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [isFilterPopupOpen, setIsFilterPopupOpen] = useState(false);
@@ -77,9 +87,6 @@ export default function ClientsPage({ searchTerm = '' }) {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDeleteClient = (id) => {
-    setClientsData(clientsData.filter(client => client.id !== id));
-  };
 
   const handleEditRow = (id) => {
     const client = clientsData.find(c => c.id === id);
@@ -90,8 +97,27 @@ export default function ClientsPage({ searchTerm = '' }) {
     }
   };
 
-  const handleDeleteRow = (id) => {
-    handleDeleteClient(id);
+  const handleDeleteRow = async (id) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This action cannot be undone and will delete all associated projects.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await apiService.deleteClient(id);
+        fetchClients(); // Refresh the list from the server
+        toast.success('Client deleted successfully');
+      } catch (error) {
+        console.error('Error deleting client:', error);
+        toast.error(`Failed to delete client: ${error.message}`);
+      }
+    }
   };
 
   const handleCreateClient = async (newClient) => {
@@ -191,22 +217,29 @@ export default function ClientsPage({ searchTerm = '' }) {
       case 'actions':
         return (
           <div className="flex justify-center gap-1 sm:gap-2">
-            <TableActionButton
-              icon={FaPencilAlt}
-              type="edit"
-              title="Edit"
-              onClick={() => handleEditRow(client.id)}
-              mobileSize={false}
-              extraSmall={true}
-            />
-            <TableActionButton
-              icon={FaTrash}
-              type="delete"
-              title="Delete"
-              onClick={() => handleDeleteRow(client.id)}
-              mobileSize={false}
-              extraSmall={true}
-            />
+            {canEdit && (
+              <TableActionButton
+                icon={FaPencilAlt}
+                type="edit"
+                title="Edit"
+                onClick={() => handleEditRow(client.id)}
+                mobileSize={false}
+                extraSmall={true}
+              />
+            )}
+            {canDelete && (
+              <TableActionButton
+                icon={FaTrash}
+                type="delete"
+                title="Delete"
+                onClick={() => handleDeleteRow(client.id)}
+                mobileSize={false}
+                extraSmall={true}
+              />
+            )}
+            {!canEdit && !canDelete && (
+              <span className="text-gray-400 text-[10px] italic">No actions</span>
+            )}
           </div>
         );
       default:
@@ -274,16 +307,18 @@ export default function ClientsPage({ searchTerm = '' }) {
                         </div>
                       )}
                     </div>
-                    <button
-                      onClick={() => setIsClientFormOpen(true)}
-                      className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm"
-                      style={{
-                        backgroundColor: 'var(--primary-color)'
-                      }}
-                    >
-                      <FiPlus size={17} color="#ffffff" />
-                      <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
-                    </button>
+                    {canCreate && (
+                      <button
+                        onClick={() => setIsClientFormOpen(true)}
+                        className="flex items-center gap-1 pl-2 pr-2 pt-1.5 pb-1.5 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm"
+                        style={{
+                          backgroundColor: 'var(--primary-color)'
+                        }}
+                      >
+                        <FiPlus size={17} color="#ffffff" />
+                        <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>New</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -308,20 +343,24 @@ export default function ClientsPage({ searchTerm = '' }) {
                               </span>
                             </div>
                             <div className="flex gap-2 ml-3">
-                              <TableActionButton
-                                icon={FaPencilAlt}
-                                type="edit"
-                                title="Edit"
-                                onClick={() => handleEditRow(client.id)}
-                                mobileSize={true}
-                              />
-                              <TableActionButton
-                                icon={FaTrash}
-                                type="delete"
-                                title="Delete"
-                                onClick={() => handleDeleteRow(client.id)}
-                                mobileSize={true}
-                              />
+                              {canEdit && (
+                                <TableActionButton
+                                  icon={FaPencilAlt}
+                                  type="edit"
+                                  title="Edit"
+                                  onClick={() => handleEditRow(client.id)}
+                                  mobileSize={true}
+                                />
+                              )}
+                              {canDelete && (
+                                <TableActionButton
+                                  icon={FaTrash}
+                                  type="delete"
+                                  title="Delete"
+                                  onClick={() => handleDeleteRow(client.id)}
+                                  mobileSize={true}
+                                />
+                              )}
                             </div>
                           </div>
 
