@@ -1,36 +1,271 @@
-import React, { useState, useEffect } from "react";
-import { FiMail, FiPhone, FiDollarSign, FiCalendar, FiHome, FiMapPin, FiBriefcase, FiTrendingUp, FiBarChart, FiUser, FiFileText, FiEdit2, FiCheck, FiX, FiCheckCircle } from "react-icons/fi";
+import React, { useState, useEffect, useRef } from "react";
+import { FiX } from "react-icons/fi";
 import apiService from "../services/api";
-import { formatDateForDisplay } from "../utils/dateUtils";
 import SuccessPopup from "./SuccessPopup";
 import ProjectFormPopup from "./ProjectFormPopup";
 import LeadConversionWizard from "./LeadConversionWizard";
 
-const LeadInfo = ({ selectedLead, onClose }) => {
-  if (!selectedLead) return null;
+// InputField component moved outside to prevent re-creation on each render
+const InputField = ({
+  label,
+  required,
+  type = "text",
+  value,
+  onChange,
+  placeholder,
+  helperText,
+  helperTextColor,
+  ...rest
+}) => (
+  <div
+    className="relative"
+    style={{ marginBottom: "var(--form-margin-bottom)" }}
+  >
+    <label
+      className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider"
+      style={{
+        fontFamily: "var(--font-family)",
+        fontSize: "var(--label-font-size)",
+        fontWeight: "var(--label-font-weight)",
+      }}
+    >
+      <span>
+        {label}
+        {required && (
+          <span
+            style={{
+              color: "var(--secondary-color)",
+              fontFamily: "var(--font-family)",
+            }}
+            className="ml-1"
+          >
+            *
+          </span>
+        )}
+      </span>
+    </label>
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      style={{
+        width: "100%",
+        height: "var(--input-height)",
+        padding: "var(--input-padding)",
+        fontSize: "var(--placeholder-font-size)",
+        fontFamily: "var(--font-family)",
+        fontWeight: "normal",
+        border: `1px solid ${helperTextColor === "red" ? "#ef4444" : "var(--input-border-color)"}`,
+        borderRadius: "var(--input-border-radius)",
+        backgroundColor: "var(--input-bg-color)",
+        color: "var(--input-text-color)",
+        outline: "none",
+        transition: "border-color 0.2s",
+      }}
+      onFocus={(e) =>
+        (e.target.style.borderColor =
+          helperTextColor === "red"
+            ? "#ef4444"
+            : "var(--input-focus-border-color)")
+      }
+      onBlur={(e) =>
+        (e.target.style.borderColor =
+          helperTextColor === "red" ? "#ef4444" : "var(--input-border-color)")
+      }
+      {...rest}
+    />
+    {helperText && (
+      <span
+        style={{
+          fontSize: "11px",
+          color: helperTextColor || "#6b7280",
+          fontFamily: "var(--font-family)",
+          marginTop: "4px",
+          display: "block",
+        }}
+      >
+        {helperText}
+      </span>
+    )}
+  </div>
+);
 
+// TextAreaField component for multi-line text input
+const TextAreaField = ({
+  label,
+  required,
+  value,
+  onChange,
+  placeholder,
+  rows = 3,
+  maxLength,
+  ...rest
+}) => (
+  <div
+    className="relative"
+    style={{ marginBottom: "var(--form-margin-bottom)" }}
+  >
+    <label
+      className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider"
+      style={{
+        fontFamily: "var(--font-family)",
+        fontSize: "var(--label-font-size)",
+        fontWeight: "var(--label-font-weight)",
+        zIndex: 1,
+      }}
+    >
+      <span>
+        {label}
+        {required && (
+          <span
+            style={{
+              color: "var(--secondary-color)",
+              fontFamily: "var(--font-family)",
+            }}
+            className="ml-1"
+          >
+            *
+          </span>
+        )}
+      </span>
+    </label>
+    <textarea
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      rows={rows}
+      maxLength={maxLength}
+      style={{
+        width: "100%",
+        minHeight: "80px",
+        padding: "var(--input-padding)",
+        fontSize: "var(--placeholder-font-size)",
+        fontFamily: "var(--font-family)",
+        fontWeight: "normal",
+        border: `1px solid var(--input-border-color)`,
+        borderRadius: "var(--input-border-radius)",
+        backgroundColor: "var(--input-bg-color)",
+        color: "var(--input-text-color)",
+        outline: "none",
+        transition: "border-color 0.2s",
+        resize: "vertical",
+        overflow: "auto",
+        wordWrap: "break-word",
+        whiteSpace: "pre-wrap",
+      }}
+      onFocus={(e) =>
+        (e.target.style.borderColor = "var(--input-focus-border-color)")
+      }
+      onBlur={(e) => (e.target.style.borderColor = "var(--input-border-color)")}
+      {...rest}
+    />
+    {maxLength && (
+      <span
+        style={{
+          fontSize: "11px",
+          color: "#6b7280",
+          fontFamily: "var(--font-family)",
+          marginTop: "4px",
+          display: "block",
+        }}
+      >
+        {value?.length || 0}/{maxLength} characters
+      </span>
+    )}
+  </div>
+);
 
+// Helper to format any date input (ISO string, object, etc.) to YYYY-MM-DD
+const formatDateForInput = (dateInput) => {
+  if (!dateInput) return "";
+  try {
+    const d = new Date(dateInput);
+    return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+  } catch {
+    return "";
+  }
+};
 
-  // Inline editing state
-  const [isEditingLead, setIsEditingLead] = useState(false);
-  const [editedLeadData, setEditedLeadData] = useState({});
-  const [savingLead, setSavingLead] = useState(false);
+export default function LeadFormPopup({
+  isOpen,
+  onClose,
+  onSubmit,
+  isEdit = false,
+  editLead = null,
+}) {
+  const [date, setDate] = useState(formatDateForInput(new Date()));
+  const [leadType, setLeadType] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  // Validation error states
+  const [contactNameError, setContactNameError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [company, setCompany] = useState("");
+
+  // ---- Added states for previously non-editable fields ----
+  const [address, setAddress] = useState("");
+  const [source, setSource] = useState(""); // if you want to store select values later
+  const [leadStatus, setLeadStatus] = useState("Open");
+  const [lastContactedDate, setLastContactedDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [leadAssignee, setLeadAssignee] = useState("");
   const [users, setUsers] = useState([]);
 
   // Success popup state
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-  const [successData, setSuccessData] = useState({ title: '', message: '', clientId: null });
-
-  // Conversion wizard state
+  const [successData, setSuccessData] = useState({
+    title: "",
+    message: "",
+    clientId: null,
+  });
   const [showConversionWizard, setShowConversionWizard] = useState(false);
 
   // Project form state
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [projectClientId, setProjectClientId] = useState(null);
-  const [prefilledClientName, setPrefilledClientName] = useState('');
-  const [prefilledAddress, setPrefilledAddress] = useState('');
+  const [prefilledClientName, setPrefilledClientName] = useState("");
+  const [prefilledAddress, setPrefilledAddress] = useState("");
 
+  // Check if lead is read-only (converted or lost)
+  const isReadOnly =
+    isEdit && editLead && (editLead.is_converted || editLead.is_lost);
 
+  useEffect(() => {
+    if (isEdit && editLead) {
+      setContactName(editLead.contact_name || "");
+      setDate(formatDateForInput(editLead.date));
+      setPhone(editLead.phone || "");
+      setEmail(editLead.email || "");
+      setEmailError("");
+      setCompany(editLead.company_name || "");
+      setAddress(editLead.address || "");
+      setLeadType(editLead.lead_type || "");
+      setSource(editLead.source || "");
+      setLeadStatus(editLead.lead_status || "");
+      setLastContactedDate(formatDateForInput(editLead.last_contacted_date));
+      setLeadAssignee(editLead.lead_assignee || "");
+      setDescription(editLead.description || "");
+    } else {
+      // Reset for new lead
+      setContactName("");
+      setDate(new Date().toISOString().slice(0, 10));
+      setPhone("");
+      setEmail("");
+      setEmailError("");
+      setCompany("");
+      setAddress("");
+      setLeadType("");
+      setSource("");
+      setLeadStatus("Open");
+      setLastContactedDate("");
+      setLeadAssignee("");
+      setDescription("");
+    }
+  }, [isEdit, editLead]);
 
   // Fetch users for Lead Assignee dropdown
   useEffect(() => {
@@ -39,473 +274,486 @@ const LeadInfo = ({ selectedLead, onClose }) => {
         const userData = await apiService.getUsers();
         setUsers(userData);
       } catch (error) {
-        console.error('Error fetching users:', error);
+        console.error("Error fetching users:", error);
         setUsers([]);
       }
     };
 
-    fetchUsers();
-  }, []);
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
 
-
-
-  const getInitials = (name) => {
-    return name.split(' ').map(n => n[0]).join('');
-  };
-
-  const formatDate = (dateString) => formatDateForDisplay(dateString);
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Open - Not Converted": return "bg-green-100 text-green-700 border-green-200";
-      case "Working": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Close - Convert": return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "Close - Lost": return "bg-red-100 text-red-700 border-red-200";
-      default: return "bg-gray-100 text-gray-700 border-gray-200";
+  // Phone input handler - only allow numeric input
+  const handlePhoneChange = (e) => {
+    const value = e.target.value;
+    // Only allow digits
+    if (value === "" || /^\d+$/.test(value)) {
+      setPhone(value);
     }
   };
 
-  // Start editing lead
-  const startEditingLead = () => {
-    // Prevent editing if lead is converted or lost
-    if (selectedLead.is_converted || selectedLead.is_lost) {
+  // Email input handler - validate format without popup
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+
+    // Only show error if user has typed something and it's invalid
+    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setEmailError("Invalid email format");
+    } else {
+      setEmailError("");
+    }
+  };
+
+  const handleSave = async () => {
+    // Reset validation errors
+    setContactNameError("");
+    setPhoneError("");
+    setEmailError("");
+
+    // Contact Name validation
+    if (!contactName.trim()) {
+      setContactNameError("Contact name is required");
       return;
     }
 
-    const formatDateForInput = (dateString) => {
-      if (!dateString) return "";
-      const date = new Date(dateString);
-      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // Phone validation
+    if (!phone.trim()) {
+      setPhoneError("Phone number is required");
+      return;
+    }
+
+    // Phone validation: exactly 10 digits
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length !== 10) {
+      setPhoneError("Please enter a valid 10-digit phone number");
+      return;
+    }
+
+    // Email validation: valid format if provided
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return;
+    }
+
+    const leadData = {
+      contact_name: contactName,
+      date: formatDateForInput(date),
+      phone: phone,
+      email,
+      company_name: company,
+      address,
+      lead_type: leadType,
+      source,
+      lead_status: leadStatus,
+      last_contacted_date: lastContactedDate
+        ? formatDateForInput(lastContactedDate)
+        : null,
+      lead_assignee: leadAssignee,
+      description,
     };
 
-    setEditedLeadData({
-      contact_name: selectedLead.name,
-      date: formatDateForInput(selectedLead.date),
-      phone: selectedLead.phone,
-      email: selectedLead.email,
-      company_name: selectedLead.company,
-      address: selectedLead.address,
-      lead_type: selectedLead.leadType,
-      source: selectedLead.source,
-      lead_status: selectedLead.leadStatus,
-      last_contacted_date: formatDateForInput(selectedLead.lastContactedDate),
-      lead_assignee: selectedLead.leadAssignee,
-      description: selectedLead.description
-    });
-    setIsEditingLead(true);
-  };
-
-  const cancelEditingLead = () => {
-    setIsEditingLead(false);
-    setEditedLeadData({});
-  };
-
-  const saveLead = async () => {
-    setSavingLead(true);
     try {
-      // Check if status is being changed to "Close - Convert"
-      const isConverting = editedLeadData.lead_status === 'Close - Convert' &&
-        selectedLead.leadStatus !== 'Close - Convert';
-
-      if (isConverting) {
-        // First update the lead data
-        await apiService.updateLead(selectedLead.id, editedLeadData);
-
-        // Then convert to client
-        const conversionResult = await apiService.convertLeadToClient(selectedLead.id);
-
-        // Update the selectedLead object with the new data and conversion status
-        Object.assign(selectedLead, {
-          name: editedLeadData.contact_name,
-          date: editedLeadData.date,
-          phone: editedLeadData.phone,
-          email: editedLeadData.email,
-          company: editedLeadData.company_name,
-          address: editedLeadData.address,
-          leadType: editedLeadData.lead_type,
-          source: editedLeadData.source,
-          leadStatus: editedLeadData.lead_status,
-          status: editedLeadData.lead_status,
-          lastContactedDate: editedLeadData.last_contacted_date,
-          leadAssignee: editedLeadData.lead_assignee,
-          description: editedLeadData.description,
-          is_converted: true,
-          client_id: conversionResult.clientId
-        });
-
-        setSuccessData({
-          title: 'Lead Converted Successfully!',
-          message: 'The lead has been successfully converted to a client.',
-          clientId: conversionResult.clientId
-        });
-        setShowSuccessPopup(true);
+      if (isEdit) {
+        await apiService.updateLead(editLead.id, leadData);
       } else {
-        // Normal update
-        await apiService.updateLead(selectedLead.id, editedLeadData);
-
-        // Update the selectedLead object with the new data
-        Object.assign(selectedLead, {
-          name: editedLeadData.contact_name,
-          date: editedLeadData.date,
-          phone: editedLeadData.phone,
-          email: editedLeadData.email,
-          company: editedLeadData.company_name,
-          address: editedLeadData.address,
-          leadType: editedLeadData.lead_type,
-          source: editedLeadData.source,
-          leadStatus: editedLeadData.lead_status,
-          status: editedLeadData.lead_status,
-          lastContactedDate: editedLeadData.last_contacted_date,
-          leadAssignee: editedLeadData.lead_assignee,
-          description: editedLeadData.description
-        });
+        await apiService.createLead(leadData);
       }
-
-      setIsEditingLead(false);
-      // Stay in the LeadInfo view - don't close
+      onClose();
+      if (onSubmit) onSubmit(); // Fetch leads after save
     } catch (error) {
-      console.error("Error updating lead:", error);
-      alert(error.message || "Failed to save lead. Please try again.");
-    } finally {
-      setSavingLead(false);
+      console.error("Error saving lead:", error);
     }
   };
 
-  const handleFieldChange = (field, value) => {
-    setEditedLeadData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const SelectField = ({
+    label,
+    options = [],
+    value,
+    onChange,
+    placeholder,
+  }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const selectRef = useRef(null);
 
-  return (
-    <div className="bg-white rounded-xl border border-gray-400 pb-4">
-      <div className="flex items-center justify-between mb-0 px-4 sm:px-2 pt-2 pb-2 border-b border-gray-200">
-        <div className="hidden sm:flex items-center gap-3 mb-3 sm:mb-0">
-        </div>
-        <div className="flex items-center justify-end gap-2 w-full sm:w-auto py-0">
-          {isEditingLead ? (
-            <>
-              <button
-                onClick={saveLead}
-                disabled={savingLead}
-                className="flex items-center gap-1 px-3 py-2 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm whitespace-nowrap"
-                style={{
-                  backgroundColor: 'var(--primary-color)',
-                  minWidth: 'fit-content'
-                }}
-              >
-                <FiCheck className="w-4 h-4" />
-                <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>
-                  {savingLead ? 'Saving...' : 'Save'}
-                </span>
-              </button>
-              <button
-                onClick={cancelEditingLead}
-                disabled={savingLead}
-                className="flex items-center gap-1 px-3 py-2 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm whitespace-nowrap border border-gray-300"
-                style={{
-                  minWidth: 'fit-content'
-                }}
-              >
-                <FiX className="w-4 h-4" />
-                <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>Cancel</span>
-              </button>
-            </>
-          ) : (
-            <>
-              {/* Show status badges for converted/lost leads */}
-              {selectedLead.is_converted && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 text-xs font-medium rounded-lg border border-green-200">
-                  <FiCheckCircle className="w-4 h-4" />
-                  <span>Converted to Client</span>
-                </div>
-              )}
-              {selectedLead.is_lost && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 text-xs font-medium rounded-lg border border-red-200">
-                  <FiX className="w-4 h-4" />
-                  <span>Lost Lead</span>
-                </div>
-              )}
+    useEffect(() => {
+      const handleClickOutside = (e) => {
+        if (
+          isOpen &&
+          selectRef.current &&
+          !selectRef.current.contains(e.target)
+        ) {
+          setIsOpen(false);
+          setSearchTerm("");
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }, [isOpen]);
 
-              <button
-                onClick={startEditingLead}
-                disabled={selectedLead.is_converted || selectedLead.is_lost}
-                className="flex items-center gap-1 px-3 py-2 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: 'var(--primary-color)',
-                  minWidth: 'fit-content'
-                }}
-                title={selectedLead.is_converted ? 'Cannot edit converted lead' : selectedLead.is_lost ? 'Cannot edit lost lead' : 'Edit lead'}
-              >
-                <FiEdit2 className="w-4 h-4" />
-                <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>Edit</span>
-              </button>
+    const handleSelect = (option) => {
+      onChange(option);
+      setIsOpen(false);
+      setSearchTerm("");
+    };
 
-              {/* Convert to Client button - only show if not converted or lost */}
-              {!selectedLead.is_converted && !selectedLead.is_lost && (
-                <button
-                  onClick={() => setShowConversionWizard(true)}
-                  className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 focus:outline-none focus:ring-1 focus:ring-green-400 active:shadow-md transition-all shadow-sm whitespace-nowrap"
-                  style={{ minWidth: 'fit-content' }}
-                >
-                  <FiCheckCircle className="w-4 h-4" />
-                  <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>Convert</span>
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="flex items-center gap-1 px-3 py-2 text-white text-sm font-medium rounded-lg hover:opacity-90 focus:outline-none focus:ring-1 focus:ring-gray-400 active:shadow-md transition-all shadow-sm whitespace-nowrap"
-                style={{
-                  backgroundColor: 'var(--primary-color)',
-                  minWidth: 'fit-content'
-                }}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span style={{ fontWeight: '400', fontSize: '12px', lineHeight: '18px' }}>Back</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+    // Filter options based on search term
+    const filteredOptions = options.filter((option) =>
+      option.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 
-      {/* Lead Details */}
-      <div className="p-6">
-        {/* Lead Basic Info */}
-        <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">{isEditingLead ? editedLeadData.contact_name : selectedLead.name}</h3>
-          <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full mt-2 ${getStatusColor(isEditingLead ? editedLeadData.lead_status : selectedLead.leadStatus)}`}>
-            {isEditingLead ? editedLeadData.lead_status : selectedLead.leadStatus}
+    return (
+      <div
+        ref={selectRef}
+        className="relative"
+        style={{ marginBottom: "var(--form-margin-bottom)" }}
+      >
+        <label
+          className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider"
+          style={{
+            fontFamily: "var(--font-family)",
+            fontSize: "var(--label-font-size)",
+            fontWeight: "var(--label-font-weight)",
+          }}
+        >
+          {label}
+        </label>
+        <div
+          onClick={() => setIsOpen(!isOpen)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setIsOpen(!isOpen);
+            }
+          }}
+          tabIndex={0}
+          style={{
+            width: "100%",
+            height: "var(--input-height)",
+            padding: "var(--input-padding)",
+            fontSize: "var(--input-font-size)",
+            fontFamily: "var(--font-family)",
+            border: `1px solid var(--input-border-color)`,
+            borderRadius: "var(--input-border-radius)",
+            backgroundColor: "var(--input-bg-color)",
+            color: value
+              ? "var(--input-text-color)"
+              : "var(--input-placeholder-color)",
+            outline: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            transition: "border-color 0.2s",
+          }}
+          onFocus={(e) =>
+            (e.target.style.borderColor = "var(--input-focus-border-color)")
+          }
+          onBlur={(e) =>
+            (e.target.style.borderColor = "var(--input-border-color)")
+          }
+        >
+          <span
+            style={{
+              color: value
+                ? "var(--input-text-color)"
+                : "var(--input-placeholder-color)",
+              fontSize: "var(--placeholder-font-size)",
+              fontFamily: "var(--font-family)",
+            }}
+          >
+            {value || placeholder}
           </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
         </div>
-
-        {/* Contact Information Grid */}
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-4">
-            {/* Contact Name */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">CONTACT NAME*</span>
-                {isEditingLead ? (
-                  <input
-                    type="text"
-                    value={editedLeadData.contact_name}
-                    onChange={(e) => handleFieldChange('contact_name', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.name}</span>
-                )}
-              </div>
+        {isOpen && (
+          <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-full mt-1">
+            {/* Search input */}
+            <div className="p-2 border-b border-gray-200">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                style={{ fontFamily: "var(--font-family)" }}
+                onClick={(e) => e.stopPropagation()}
+              />
             </div>
-
-            {/* Date */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">DATE</span>
-                {isEditingLead ? (
-                  <input
-                    type="date"
-                    value={editedLeadData.date}
-                    onChange={(e) => handleFieldChange('date', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{formatDate(selectedLead.date)}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Email */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">EMAIL</span>
-                {isEditingLead ? (
-                  <input
-                    type="email"
-                    value={editedLeadData.email}
-                    onChange={(e) => handleFieldChange('email', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.email}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Phone */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">PHONE NO.*</span>
-                {isEditingLead ? (
-                  <input
-                    type="tel"
-                    value={editedLeadData.phone}
-                    onChange={(e) => handleFieldChange('phone', e.target.value)}
-                    maxLength={10}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.phone}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Company Name */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">COMPANY NAME</span>
-                {isEditingLead ? (
-                  <input
-                    type="text"
-                    value={editedLeadData.company_name}
-                    onChange={(e) => handleFieldChange('company_name', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.company || 'N/A'}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Address */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">ADDRESS</span>
-                {isEditingLead ? (
-                  <input
-                    type="text"
-                    value={editedLeadData.address}
-                    onChange={(e) => handleFieldChange('address', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.address || 'N/A'}</span>
-                )}
-              </div>
+            {/* Options list */}
+            <div className="max-h-48 overflow-y-auto">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSelect(option)}
+                    style={{
+                      padding: "8px 12px",
+                      fontSize: "var(--input-font-size)",
+                      fontFamily: "var(--font-family)",
+                      color:
+                        option === value
+                          ? "var(--input-placeholder-color)"
+                          : "var(--input-text-color)",
+                      cursor: "pointer",
+                      backgroundColor:
+                        option === value ? "#f3f4f6" : "transparent",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.target.style.backgroundColor = "#f9fafb")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.target.style.backgroundColor =
+                        option === value ? "#f3f4f6" : "transparent")
+                    }
+                  >
+                    {option}
+                  </div>
+                ))
+              ) : (
+                <div
+                  className="px-3 py-2 text-sm text-gray-500 text-center"
+                  style={{ fontFamily: "var(--font-family)" }}
+                >
+                  No results found
+                </div>
+              )}
             </div>
           </div>
+        )}
+      </div>
+    );
+  };
 
-          <div className="space-y-4">
-            {/* Lead Type */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">LEAD TYPE</span>
-                {isEditingLead ? (
-                  <select
-                    value={editedLeadData.lead_type}
-                    onChange={(e) => handleFieldChange('lead_type', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  >
-                    <option value="">Select</option>
-                    <option value="Construction">Construction</option>
-                    <option value="Interior">Interior</option>
-                    <option value="Renovation">Renovation</option>
-                  </select>
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.leadType || 'N/A'}</span>
-                )}
-              </div>
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-2 sm:p-6 overflow-auto">
+      <div className="w-full max-w-5xl bg-white rounded-xl flex flex-col max-h-[75vh] sm:max-h-[90vh] mt-2 mb-2 sm:mt-0 sm:mb-0 lead-modal">
+        <div
+          className="flex items-center justify-between px-6 py-4 sticky top-0 bg-white z-10 border-b-2 rounded-t-xl"
+          style={{ borderBottomColor: "var(--primary-color)" }}
+        >
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100"
+            >
+              <FiX size={20} />
+            </button>
+            <h2
+              className="text-lg font-bold"
+              style={{
+                color: "var(--primary-color)",
+                fontFamily: "var(--font-family)",
+              }}
+            >
+              {isEdit ? "EDIT LEAD" : "NEW LEAD"}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Convert to Client button - only show when editing and not converted/lost */}
+            {isEdit &&
+              editLead &&
+              !editLead.is_converted &&
+              !editLead.is_lost && (
+                <button
+                  onClick={() => setShowConversionWizard(true)}
+                  className="text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-xl shadow-md hover:opacity-90 bg-green-600"
+                  style={{ fontFamily: "var(--font-family)" }}
+                  title="Convert lead to client"
+                >
+                  Convert
+                </button>
+              )}
+            <button
+              onClick={handleSave}
+              disabled={isReadOnly}
+              className="text-white px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base rounded-xl shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: "var(--primary-color)",
+                fontFamily: "var(--font-family)",
+              }}
+              title={isReadOnly ? "Cannot edit this lead" : "Save lead"}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+
+        {/* Warning banner for read-only leads */}
+        {isReadOnly && (
+          <div className="px-6 py-3 bg-yellow-50 border-b border-yellow-200">
+            <div className="flex items-center gap-2 text-yellow-800 text-sm">
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="font-medium">
+                {editLead?.is_converted
+                  ? "This lead has been converted to a client and cannot be edited."
+                  : "This lead has been marked as lost and cannot be edited."}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <div className="p-6 flex-1 overflow-y-auto rounded-b-xl">
+          <div
+            className="grid grid-cols-1 md:grid-cols-2"
+            style={{ gap: "var(--form-gap)" }}
+          >
+            {/* Row 1: CONTACT NAME* | DATE */}
+            <div className="md:col-span-1">
+              <InputField
+                label="CONTACT NAME"
+                required
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value);
+                  if (e.target.value.trim()) {
+                    setContactNameError("");
+                  }
+                }}
+                placeholder="Enter contact name"
+                helperText={contactNameError}
+                helperTextColor={contactNameError ? "red" : ""}
+              />
+            </div>
+            <div className="md:col-span-1">
+              <InputField
+                label="DATE"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
             </div>
 
-            {/* Source */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">SOURCE</span>
-                {isEditingLead ? (
-                  <select
-                    value={editedLeadData.source}
-                    onChange={(e) => handleFieldChange('source', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  >
-                    <option value="">Select</option>
-                    <option value="Manual">Manual</option>
-                    <option value="Email">Email</option>
-                    <option value="Website">Website</option>
-                    <option value="Social Media">Social Media</option>
-                    <option value="Whatsapp">Whatsapp</option>
-                  </select>
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.source || 'N/A'}</span>
-                )}
-              </div>
+            {/* Row 2: PHONE NO. | EMAIL */}
+            <div className="md:col-span-1">
+              <InputField
+                label="PHONE NO."
+                required
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  handlePhoneChange(e);
+                  if (e.target.value.trim()) {
+                    setPhoneError("");
+                  }
+                }}
+                placeholder="Enter 10 digit phone number"
+                maxLength={10}
+                pattern="[0-9]*"
+                inputMode="numeric"
+                helperText={phoneError}
+                helperTextColor={phoneError ? "red" : ""}
+              />
+            </div>
+            <div className="md:col-span-1">
+              <InputField
+                label="EMAIL"
+                type="email"
+                value={email}
+                onChange={handleEmailChange}
+                placeholder="Enter email"
+                helperText={emailError}
+                helperTextColor={emailError ? "red" : ""}
+              />
             </div>
 
-            {/* Lead Status */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">LEAD STATUS</span>
-                {isEditingLead ? (
-                  <select
-                    value={editedLeadData.lead_status}
-                    onChange={(e) => handleFieldChange('lead_status', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  >
-                    <option value="">Select</option>
-                    <option value="Open - Not Converted">Open - Not Converted</option>
-                    <option value="Working">Working</option>
-                    <option value="Close - Convert">Close - Convert</option>
-                    <option value="Close - Lost">Close - Lost</option>
-                  </select>
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.leadStatus || 'N/A'}</span>
-                )}
-              </div>
+            {/* Row 3: COMPANY NAME | ADDRESS */}
+            <div className="md:col-span-1">
+              <InputField
+                label="COMPANY NAME"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Enter company name"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <InputField
+                label="ADDRESS"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Enter address"
+              />
             </div>
 
-
-            {/* Lead Assignee */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">LEAD ASSIGNEE</span>
-                {isEditingLead ? (
-                  <select
-                    value={editedLeadData.lead_assignee}
-                    onChange={(e) => handleFieldChange('lead_assignee', e.target.value)}
-                    className="w-full text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  >
-                    <option value="">Select</option>
-                    {users.map(user => (
-                      <option key={user.id} value={`${user.first_name} ${user.last_name}`}>
-                        {user.first_name} {user.last_name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-sm font-medium text-gray-900">{selectedLead.leadAssignee || 'N/A'}</span>
-                )}
-              </div>
+            {/* Row 4: LEAD TYPE | SOURCE */}
+            <div className="md:col-span-1">
+              <SelectField
+                label="LEAD TYPE"
+                options={["Construction", "Interior", "Renovation"]}
+                value={leadType}
+                onChange={setLeadType}
+                placeholder="Select lead type"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <SelectField
+                label="SOURCE"
+                options={[
+                  "Manual",
+                  "Email",
+                  "Website",
+                  "Social Media",
+                  "Whatsapp",
+                ]}
+                value={source}
+                onChange={setSource}
+                placeholder="Select source"
+              />
             </div>
 
-            {/* Description */}
-            <div className="bg-gray-50 rounded-lg py-2 px-4 border border-gray-200">
-              <div className="flex flex-col gap-2">
-                <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">DESCRIPTION</span>
-                {isEditingLead ? (
-                  <textarea
-                    value={editedLeadData.description}
-                    onChange={(e) => handleFieldChange('description', e.target.value)}
-                    rows={3}
-                    maxLength={500}
-                    className="w-full text-sm text-gray-900 border border-gray-300 rounded px-2 py-1"
-                    style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--placeholder-font-size)' }}
-                  />
-                ) : (
-                  <span className="text-sm text-gray-900">{selectedLead.description || 'N/A'}</span>
+            {/* Row 5: LEAD STATUS | LEAD ASSIGNEE */}
+            <div className="md:col-span-1">
+              <SelectField
+                label="LEAD STATUS"
+                options={["Open", "Working", "Close - Converted", "Close Lost"]}
+                value={leadStatus}
+                onChange={setLeadStatus}
+                placeholder="Select lead status"
+              />
+            </div>
+            <div className="md:col-span-1">
+              <SelectField
+                label="LEAD ASSIGNEE"
+                options={users.map(
+                  (user) => `${user.first_name} ${user.last_name}`,
                 )}
-              </div>
+                value={leadAssignee}
+                onChange={setLeadAssignee}
+                placeholder="Select assignee"
+              />
+            </div>
+
+            {/* Row 6: DESCRIPTION (full width) */}
+            <div className="md:col-span-2">
+              <TextAreaField
+                label="DESCRIPTION"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter description"
+                rows={3}
+                maxLength={500}
+              />
             </div>
           </div>
         </div>
@@ -515,17 +763,16 @@ const LeadInfo = ({ selectedLead, onClose }) => {
       <LeadConversionWizard
         isOpen={showConversionWizard}
         onClose={() => setShowConversionWizard(false)}
-        leadData={selectedLead}
+        leadData={editLead}
         onConversionComplete={() => {
           setShowConversionWizard(false);
-          selectedLead.is_converted = true;
-          setIsEditingLead(false);
-          // Refresh the lead data if needed
+          onClose();
+          if (onSubmit) onSubmit();
         }}
         onCreateProject={(clientId, leadData) => {
           setProjectClientId(clientId);
-          setPrefilledClientName(leadData.contact_name || leadData.name || '');
-          setPrefilledAddress(leadData.address || '');
+          setPrefilledClientName(leadData.contact_name || leadData.name || "");
+          setPrefilledAddress(leadData.address || "");
           setShowProjectForm(true);
           setShowConversionWizard(false);
         }}
@@ -534,17 +781,24 @@ const LeadInfo = ({ selectedLead, onClose }) => {
       {/* Success Popup */}
       <SuccessPopup
         isOpen={showSuccessPopup}
-        onClose={() => setShowSuccessPopup(false)}
+        onClose={() => {
+          setShowSuccessPopup(false);
+          // Close lead form only if not opening project form
+          onClose();
+          if (onSubmit) onSubmit();
+        }}
         title={successData.title}
         message={successData.message}
         clientId={successData.clientId}
-        leadData={selectedLead}
+        leadData={editLead}
+        shouldCloseParent={false}
         onCreateProject={(clientId, leadData) => {
           setProjectClientId(clientId);
-          setPrefilledClientName(leadData.contact_name || leadData.name || '');
-          setPrefilledAddress(leadData.address || '');
+          setPrefilledClientName(leadData.contact_name || leadData.name || "");
+          setPrefilledAddress(leadData.address || "");
           setShowProjectForm(true);
           setShowSuccessPopup(false);
+          // Don't close the lead form yet - wait for project form to close
         }}
       />
 
@@ -554,10 +808,14 @@ const LeadInfo = ({ selectedLead, onClose }) => {
         onClose={() => {
           setShowProjectForm(false);
           setProjectClientId(null);
+          onClose();
+          if (onSubmit) onSubmit();
         }}
         onSubmit={() => {
           setShowProjectForm(false);
           setProjectClientId(null);
+          onClose();
+          if (onSubmit) onSubmit();
         }}
         preselectedClientId={projectClientId}
         prefilledClientName={prefilledClientName}
@@ -565,6 +823,4 @@ const LeadInfo = ({ selectedLead, onClose }) => {
       />
     </div>
   );
-};
-
-export default LeadInfo;
+}

@@ -14,23 +14,38 @@ const StepIndicator = ({ currentStep, totalSteps }) => {
           <React.Fragment key={stepNumber}>
             <div className="flex flex-col items-center">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${isCompleted
-                    ? 'bg-green-500 text-white'
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                  isCompleted
+                    ? "bg-green-500 text-white"
                     : isActive
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-500'
-                  }`}
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-200 text-gray-500"
+                }`}
               >
                 {isCompleted ? <FiCheck size={16} /> : stepNumber}
               </div>
-              <span className={`mt-2 text-xs font-medium ${isActive ? 'text-blue-500' : isCompleted ? 'text-green-500' : 'text-gray-400'
-                }`}>
-                {stepNumber === 1 ? 'Confirm' : stepNumber === 2 ? 'Convert' : 'Complete'}
+              <span
+                className={`mt-2 text-xs font-medium ${
+                  isActive
+                    ? "text-blue-500"
+                    : isCompleted
+                      ? "text-green-500"
+                      : "text-gray-400"
+                }`}
+              >
+                {stepNumber === 1
+                  ? "Confirm"
+                  : stepNumber === 2
+                    ? "Convert"
+                    : "Complete"}
               </span>
             </div>
             {stepNumber < totalSteps && (
-              <div className={`w-16 h-0.5 mx-4 transition-all duration-300 ${stepNumber < currentStep ? 'bg-green-500' : 'bg-gray-200'
-                }`} />
+              <div
+                className={`w-16 h-0.5 mx-4 transition-all duration-300 ${
+                  stepNumber < currentStep ? "bg-green-500" : "bg-gray-200"
+                }`}
+              />
             )}
           </React.Fragment>
         );
@@ -41,64 +56,86 @@ const StepIndicator = ({ currentStep, totalSteps }) => {
 
 const Step1Confirm = ({ leadData, onNext, onCancel }) => {
   // Debug: Log the lead data to understand the structure
-  console.log('Lead data in conversion wizard:', leadData);
+  console.log("Lead data in conversion wizard:", leadData);
 
   // Handle different data structures - some components pass different field names
   const getLeadValue = (primaryField, fallbackField) => {
-    return leadData[primaryField] || leadData[fallbackField] || 'N/A';
+    return leadData[primaryField] || leadData[fallbackField] || "N/A";
   };
 
   return (
     <div className="text-center">
-      <div className="mb-6">
-        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      <div className="mb-3">
+        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-1">
+          <svg
+            className="w-8 h-8 text-blue-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
           </svg>
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Convert Lead to Client</h3>
-        <p className="text-gray-600">You are about to convert this lead to a client. Please review the details below.</p>
+        <h3 className="text-l font-bold text-gray-800 mb-2">
+          Convert Lead to Client
+        </h3>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-6 mb-6 text-left">
-        <h4 className="font-semibold text-gray-800 mb-4">Lead Details</h4>
+      <div className="bg-gray-50 w-full rounded-lg  mb-3 text-justify px-4">
+        <h4 className="font-semibold  text-gray-800  mb-4">Lead Details</h4>
 
         {/* Debug info - remove this after testing */}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
           <div>
-            <span className="text-sm text-gray-500">Contact Name</span>
-            <p className="font-medium">{getLeadValue('contact_name', 'name')}</p>
+            <span className=" text-gray-500">Contact Name</span>
+            <p className="font-medium ">
+              {getLeadValue("contact_name", "name")}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Company</span>
-            <p className="font-medium">{getLeadValue('company_name', 'company')}</p>
+            <p className="font-medium">
+              {getLeadValue("company_name", "company")}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Phone</span>
-            <p className="font-medium">{leadData.phone || 'N/A'}</p>
+            <p className="font-medium">{leadData.phone || "N/A"}</p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Email</span>
-            <p className="font-medium">{leadData.email || 'N/A'}</p>
+            <p className="font-medium">{leadData.email || "N/A"}</p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Lead Type</span>
-            <p className="font-medium">{getLeadValue('lead_type', 'leadType')}</p>
+            <p className="font-medium">
+              {getLeadValue("lead_type", "leadType")}
+            </p>
           </div>
           <div>
             <span className="text-sm text-gray-500">Status</span>
-            <p className="font-medium">{getLeadValue('lead_status', 'leadStatus')}</p>
+            <p className="font-medium">
+              {getLeadValue("lead_status", "leadStatus")}
+            </p>
           </div>
-          {(leadData.address || leadData.source || leadData.lead_assignee || leadData.leadAssignee) && (
+          {(leadData.address ||
+            leadData.source ||
+            leadData.lead_assignee ||
+            leadData.leadAssignee) && (
             <>
-              {(leadData.address) && (
+              {leadData.address && (
                 <div>
                   <span className="text-sm text-gray-500">Address</span>
                   <p className="font-medium">{leadData.address}</p>
                 </div>
               )}
-              {(leadData.source) && (
+              {leadData.source && (
                 <div>
                   <span className="text-sm text-gray-500">Source</span>
                   <p className="font-medium">{leadData.source}</p>
@@ -107,13 +144,15 @@ const Step1Confirm = ({ leadData, onNext, onCancel }) => {
               {(leadData.lead_assignee || leadData.leadAssignee) && (
                 <div>
                   <span className="text-sm text-gray-500">Assignee</span>
-                  <p className="font-medium">{getLeadValue('lead_assignee', 'leadAssignee')}</p>
+                  <p className="font-medium">
+                    {getLeadValue("lead_assignee", "leadAssignee")}
+                  </p>
                 </div>
               )}
             </>
           )}
         </div>
-        {(leadData.description) && (
+        {leadData.description && (
           <div className="mt-4">
             <span className="text-sm text-gray-500">Description</span>
             <p className="font-medium text-sm mt-1">{leadData.description}</p>
@@ -141,11 +180,11 @@ const Step1Confirm = ({ leadData, onNext, onCancel }) => {
 
 const Step2Convert = ({ leadData, onNext, onBack, onCancel }) => {
   const [isConverting, setIsConverting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleConvert = async () => {
     setIsConverting(true);
-    setError('');
+    setError("");
 
     try {
       const result = await apiService.convertLeadToClient(leadData.id);
@@ -161,14 +200,28 @@ const Step2Convert = ({ leadData, onNext, onBack, onCancel }) => {
   return (
     <div className="text-center">
       <div className="mb-6">
-        <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-5">
+          <svg
+            className="w-8 h-8 text-orange-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+            />
           </svg>
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Converting Lead</h3>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">
+          Converting Lead
+        </h3>
         <p className="text-gray-600">
-          {isConverting ? 'Please wait while we convert your lead to a client...' : 'Ready to convert this lead to a client.'}
+          {isConverting
+            ? "Please wait while we convert your lead to a client..."
+            : "Ready to convert this lead to a client."}
         </p>
       </div>
 
@@ -178,8 +231,10 @@ const Step2Convert = ({ leadData, onNext, onBack, onCancel }) => {
         </div>
       )}
 
-      <div className="bg-blue-50 rounded-lg p-6 mb-6">
-        <h4 className="font-semibold text-blue-800 mb-2">What happens next?</h4>
+      <div className="bg-blue-50 rounded-lg px-4 m-auto py-3 mb-6">
+        <h4 className="font-semibold text-blue-800 mb-2 ">
+          What happens next?
+        </h4>
         <ul className="text-left text-blue-700 text-sm space-y-2">
           <li className="flex items-start gap-2">
             <FiCheck className="text-blue-500 mt-0.5 flex-shrink-0" size={14} />
@@ -232,30 +287,43 @@ const Step2Convert = ({ leadData, onNext, onBack, onCancel }) => {
   );
 };
 
-const Step3Complete = ({ conversionResult, leadData, onClose, onCreateProject }) => {
+const Step3Complete = ({
+  conversionResult,
+  leadData,
+  onClose,
+  onCreateProject,
+}) => {
   // Handle different data structures
-  const clientName = leadData.contact_name || leadData.name || 'Unknown';
+  const clientName = leadData.contact_name || leadData.name || "Unknown";
 
   return (
-    <div className="text-center">
+    <div className="text-center ">
       <div className="mb-6">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <FiCheck className="w-8 h-8 text-green-500" />
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Conversion Successful!</h3>
-        <p className="text-gray-600">The lead has been successfully converted to a client.</p>
+        <h3 className="text-xl font-bold text-gray-800 mb-1">
+          Conversion Successful!
+        </h3>
+        <p className="text-gray-600">
+          The lead has been successfully converted to a client.
+        </p>
       </div>
 
-      <div className="bg-green-50 rounded-lg p-6 mb-6">
-        <h4 className="font-semibold text-green-800 mb-4">Conversion Summary</h4>
-        <div className="text-left space-y-2">
+      <div className="bg-green-50 rounded-lg px-3 py-3 mb-6">
+        <h4 className="font-semibold text-green-800 mb-4">
+          Conversion Summary
+        </h4>
+        <div className="text-left space-y-1 ">
           <div className="flex justify-between">
             <span className="text-green-700">Client Name:</span>
             <span className="font-medium text-green-800">{clientName}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-green-700">Client ID:</span>
-            <span className="font-medium text-green-800">#{conversionResult.clientId}</span>
+            <span className="font-medium text-green-800">
+              #{conversionResult.clientId}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-green-700">Status:</span>
@@ -282,7 +350,13 @@ const Step3Complete = ({ conversionResult, leadData, onClose, onCreateProject })
   );
 };
 
-export default function LeadConversionWizard({ isOpen, onClose, leadData, onConversionComplete, onCreateProject }) {
+export default function LeadConversionWizard({
+  isOpen,
+  onClose,
+  leadData,
+  onConversionComplete,
+  onCreateProject,
+}) {
   const [currentStep, setCurrentStep] = useState(1);
   const [conversionResult, setConversionResult] = useState(null);
   const totalSteps = 3;
@@ -298,11 +372,11 @@ export default function LeadConversionWizard({ isOpen, onClose, leadData, onConv
     if (result) {
       setConversionResult(result);
     }
-    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+    setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
   };
 
   const handleBack = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
   };
 
   const handleClose = () => {
@@ -326,19 +400,19 @@ export default function LeadConversionWizard({ isOpen, onClose, leadData, onConv
   if (!isOpen || !leadData) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200] p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-lg font-bold text-gray-800">Lead Conversion</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200] p-6">
+      <div className="bg-white  rounded-xl w-screen max-w-5xl max-h-[90vh] overflow-auto scrollbar-hide">
+        <div className="flex items-center f justify-between p-3 border-b">
+          <h2 className="text-xl font-bold  text-gray-800">Lead Conversion</h2>
           <button
             onClick={handleClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-gray-600 hover:bg-gray-100"
           >
             <FiX size={20} />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 ">
           <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
 
           {currentStep === 1 && (
