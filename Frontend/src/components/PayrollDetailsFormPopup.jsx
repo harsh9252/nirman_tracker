@@ -218,20 +218,28 @@ export default function PayrollDetailsFormPopup({ isOpen, onClose, onSubmit, par
         setIsSubmitting(true);
 
         try {
+            // Map frontend fields to backend schema
             const payrollData = {
-                ...formData,
-                party_id: partyData?.id
+                salary: formData.salary_amount,
+                salary_period: formData.salary_period,
+                shift_hours: formData.shift_hours,
+                shift_period: formData.shift_period,
+                overtime_amount: formData.overtime_amount,
+                overtime_period: formData.overtime_period,
+                designation: formData.designation,
+                cost_code: formData.cost_code,
+                salary_calculation_method: formData.salary_calculation_method,
+                // In a real app, photos would be uploaded and URLs returned
+                profile_image: photoPreview[0]
             };
 
-            console.log('Submitting payroll data:', payrollData);
-
-            alert('Payroll details saved successfully!');
+            console.log('Finalizing payroll data:', payrollData);
 
             if (onSubmit) onSubmit(payrollData);
             onClose();
         } catch (error) {
-            console.error('Error saving payroll details:', error);
-            alert('Failed to save payroll details');
+            console.error('Error in payroll form:', error);
+            alert('Something went wrong');
         } finally {
             setIsSubmitting(false);
         }

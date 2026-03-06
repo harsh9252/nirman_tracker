@@ -1,138 +1,135 @@
-# Nirman Tracker Database Schema
+Project NirmanTracker {
+  database_type: "MySQL"
+}
 
-This document provides a comprehensive overview of the database schema for the Nirman Tracker application. The database is powered by **MySQL**.
+Table users {
+  id int [pk, increment]
+  first_name varchar(255) [not null]
+  last_name varchar(255) [not null]
+  email varchar(255) [not null, unique]
+  username varchar(255) [not null, unique]
+  phone varchar(20)
+  password varchar(255) [not null]
+  role varchar(50) [note: 'Admin', 'Project Manager', 'HR', 'Site Manager', 'Office Staff', 'Field Rep']
+  status varchar(50) [note: 'Active', 'Inactive']
+  profile_image varchar(255)
+  permissions json
+  is_temp_password boolean
+  created_at timestamp [default: `current_timestamp`]
+}
 
-## Table Summary
+Table clients {
+  id int [pk, increment]
+  client_name varchar(255) [not null]
+  phone varchar(20) [not null]
+  email varchar(255)
+  company_name varchar(255)
+  address text
+  lead_id int
+  conversion_date timestamp
+}
 
-| Table Name | Description | Related Model |
-| :--- | :--- | :--- |
-| `users` | Manages user accounts, authentication, and permissions. | `User.js` |
-| `projects` | Core project information including budgets and timelines. | `Project.js` |
-| `clients` | Client contact details and conversion info. | `Client.js` |
-| `leads` | Potential client leads and tracking status. | `Lead.js` |
-| `tasks` | Project-related tasks assigned to users. | `Task.js` |
-| `employees` | Workforce management including salary and status. | `Employee.js` |
-| `attendance` | Daily attendance records for employees on specific projects. | `Attendance.js` |
-| `transactions` | Financial records for projects (Payments, Material, etc.). | `Transaction.js` |
-| `notifications` | System notifications for users. | `Notification.js` |
-| `taskcomments` | Discussion threads on specific tasks. | `Comment.js` |
+Table leads {
+  id int [pk, increment]
+  contact_name varchar(255) [not null]
+  phone varchar(20) [not null]
+  email varchar(255)
+  lead_status varchar(50)
+  is_converted boolean
+  is_lost boolean
+}
 
----
+Table projects {
+  id int [pk, increment]
+  project_name varchar(255) [not null]
+  client_id int
+  project_type varchar(50)
+  status varchar(50) [note: 'Planning', 'In Progress', 'On Hold', 'Completed', 'Cancelled']
+  start_date date [not null]
+  expected_completion_date date
+  actual_completion_date date
+  estimated_budget decimal(15,2)
+  actual_cost decimal(15,2)
+  description text
+  scope_of_work text
+  created_by int
+  assigned_to int
+  created_at timestamp [default: `current_timestamp`]
+}
 
-## Detailed Table Schemas
+Table tasks {
+  id int [pk, increment]
+  name varchar(255) [not null]
+  project_id int
+  assignTo int
+  assignBy int
+  status varchar(50)
+  priority varchar(20)
+  dueDate date
+  latitude decimal(10,8)
+  longitude decimal(11,8)
+}
 
-### 1. `users`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique user identifier |
-| `first_name` | VARCHAR(255) | NOT NULL | User's first name |
-| `last_name` | VARCHAR(255) | NOT NULL | User's last name |
-| `email` | VARCHAR(255) | NOT NULL, UNIQUE | Email address for login |
-| `username` | VARCHAR(255) | NOT NULL, UNIQUE | Unique username |
-| `phone` | VARCHAR(20) | | Contact phone number |
-| `password` | VARCHAR(255) | NOT NULL | Hashed password |
-| `role` | ENUM | | e.g., 'Admin', 'Field', etc. |
-| `status` | ENUM | | 'Active', 'Inactive', 'Deleted' |
-| `profile_image` | VARCHAR(255) | | Path to profile picture |
-| `permissions` | JSON | | Specific user permissions |
-| `is_temp_password` | TINYINT(1) | | Flag for password reset requirement |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
+Table transactions {
+  id int [pk, increment]
+  project_id int
+  type varchar(50) [not null]
+  party_name varchar(255) [not null]
+  amount decimal(15,2) [not null]
+  date date [not null]
+}
 
-### 2. `projects`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique project identifier |
-| `project_name` | VARCHAR(255) | NOT NULL | Name of tracker project |
-| `client_id` | INT | FK -> `clients.id` | Associated client |
-| `project_type` | ENUM | | Residential, Commercial, etc. |
-| `status` | ENUM | | Planning, In Progress, On Hold, etc. |
-| `start_date` | DATE | NOT NULL | Project start date |
-| `expected_completion_date` | DATE | | Targeted finish date |
-| `actual_completion_date` | DATE | | Realized finish date |
-| `estimated_budget` | DECIMAL(15,2) | | Allocated budget |
-| `actual_cost` | DECIMAL(15,2) | | Current total spend |
-| `description` | TEXT | | Project overview |
-| `scope_of_work` | TEXT | | Detailed job scope |
-| `created_by` | INT | FK -> `users.id` | User who created project |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Record creation time |
+Table employees {
+  id int [pk, increment]
+  name varchar(255) [not null]
+  designation varchar(100)
+  department varchar(100)
+  salary decimal(15,2)
+  status varchar(50)
+}
 
-### 3. `clients`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique client identifier |
-| `client_name` | VARCHAR(255) | NOT NULL | Name of the client |
-| `phone` | VARCHAR(20) | NOT NULL | Contact phone |
-| `email` | VARCHAR(255) | | Contact email |
-| `company_name` | VARCHAR(255) | | Company or organization |
-| `address` | TEXT | | Client's address |
-| `lead_id` | INT | FK -> `leads.id` | Associated lead (if converted) |
-| `conversion_date` | TIMESTAMP | | Date converted from lead |
+Table attendance {
+  id int [pk, increment]
+  employee_id int
+  project_id int
+  attendance_date date [not null]
+  status varchar(20)
+}
 
-### 4. `leads`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique lead identifier |
-| `contact_name` | VARCHAR(255) | NOT NULL | Primary contact person |
-| `phone` | VARCHAR(20) | NOT NULL | Contact phone |
-| `email` | VARCHAR(255) | | Contact email |
-| `lead_status` | VARCHAR(50) | | Status (Open, Closed, etc.) |
-| `is_converted` | BOOLEAN | | True if now a client |
-| `is_lost` | BOOLEAN | | True if lead abandoned |
+Table notifications {
+  id int [pk, increment]
+  user_id int
+  message text
+  is_read boolean
+  created_at timestamp [default: `current_timestamp`]
+}
 
-### 5. `tasks`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique task identifier |
-| `name` | VARCHAR(255) | NOT NULL | Task title |
-| `project_id` | INT | FK -> `projects.id` | Related project |
-| `assignTo` | INT | FK -> `users.id` | User assigned to task |
-| `assignBy` | INT | FK -> `users.id` | User who created task |
-| `status` | VARCHAR(50) | | Status (In Progress, Done, etc.) |
-| `priority` | ENUM | | Low, Medium, High |
-| `dueDate` | DATE | | Task deadline |
+Table taskcomments {
+  id int [pk, increment]
+  task_id int
+  user_id int
+  comment text
+  created_at timestamp [default: `current_timestamp`]
+}
 
-### 6. `transactions`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique transaction identifier |
-| `project_id` | INT | FK -> `projects.id` | Related project |
-| `type` | ENUM | NOT NULL | Payment In/Out, Material Purchase/Return |
-| `party_name` | VARCHAR(255) | NOT NULL | Person or entity involved |
-| `amount` | DECIMAL(15,2) | NOT NULL | Transaction value |
-| `date` | DATE | NOT NULL | Transaction date |
+/* Relationships */
 
-### 7. `employees`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique employee identifier |
-| `name` | VARCHAR(255) | NOT NULL | Employee's full name |
-| `designation` | VARCHAR(100) | | Job title |
-| `department` | VARCHAR(100) | | Team/Department |
-| `salary` | DECIMAL(15,2) | | Monthly/Daily salary |
-| `status` | ENUM | | Active, Inactive, On Leave, Pantry |
+Ref: projects.client_id > clients.id
+Ref: projects.created_by > users.id
+Ref: projects.assigned_to > users.id
 
-### 8. `attendance`
-| Column | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | INT | PK, AI | Unique record identifier |
-| `employee_id` | INT | FK -> `employees.id` | Associated employee |
-| `project_id` | INT | FK -> `projects.id` | Project working on |
-| `attendance_date` | DATE | NOT NULL | Date of record |
-| `status` | ENUM | | Present, Absent, Half Day, On Leave |
+Ref: clients.lead_id > leads.id
 
----
+Ref: tasks.project_id > projects.id
+Ref: tasks.assignTo > users.id
+Ref: tasks.assignBy > users.id
 
-## Entity Relationship Diagram (Conceptual)
-```mermaid
-erDiagram
-    users ||--o{ projects : creates
-    users ||--o{ tasks : assigned_to
-    users ||--o{ notifications : receives
-    clients ||--o{ projects : owns
-    leads ||--o| clients : converted_to
-    projects ||--o{ tasks : contains
-    projects ||--o{ transactions : logs
-    projects ||--o{ attendance : has
-    employees ||--o{ attendance : records
-    tasks ||--o{ taskcomments : discussed_in
-```
+Ref: transactions.project_id > projects.id
+
+Ref: attendance.employee_id > employees.id
+Ref: attendance.project_id > projects.id
+
+Ref: notifications.user_id > users.id
+
+Ref: taskcomments.task_id > tasks.id
+Ref: taskcomments.user_id > users.id

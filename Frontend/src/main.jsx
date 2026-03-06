@@ -20,17 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         pauseOnFocusLoss
         draggable
         pauseOnHover
-        theme="light"
-        toastStyle={{
-          backgroundColor: '#dc2626', // red-600 for error toasts
-          color: '#ffffff'
-        }}
-        progressStyle={{
-          backgroundColor: '#ffffff' // white progress bar
-        }}
-        closeButtonStyle={{
-          color: '#ffffff' // white close button
-        }}
+        theme="colored"
       />
     </TranslationProvider>
   </React.StrictMode>,

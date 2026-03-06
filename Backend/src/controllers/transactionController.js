@@ -4,13 +4,18 @@ const transactionController = {
     createTransaction: (req, res) => {
         const transactionData = {
             ...req.body,
-            created_by: req.user.id // Assuming req.user is populated by auth middleware
+            created_by: req.user.id
         };
+
+        if (req.file) {
+            transactionData.attachment = req.file.path.replace(/\\/g, '/');
+            transactionData.attachment_name = req.file.originalname;
+        }
 
         Transaction.create(transactionData, (err, result) => {
             if (err) {
                 console.error('Error creating transaction:', err);
-                return res.status(500).json({ error: 'Failed to create transaction' });
+                return res.status(500).json({ error: 'Internal server error' });
             }
             res.status(201).json({ message: 'Transaction created successfully', id: result.insertId });
         });
@@ -20,8 +25,8 @@ const transactionController = {
         const { projectId } = req.params;
         Transaction.findByProjectId(projectId, (err, results) => {
             if (err) {
-                console.error('Error fetching transactions:', err);
-                return res.status(500).json({ error: 'Failed to fetch transactions' });
+                console.error(`Error fetching transactions for project ${projectId}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
             res.json(results);
         });
@@ -29,10 +34,17 @@ const transactionController = {
 
     updateTransaction: (req, res) => {
         const { id } = req.params;
-        Transaction.update(id, req.body, (err, result) => {
+        const transactionData = { ...req.body };
+
+        if (req.file) {
+            transactionData.attachment = req.file.path.replace(/\\/g, '/');
+            transactionData.attachment_name = req.file.originalname;
+        }
+
+        Transaction.update(id, transactionData, (err, result) => {
             if (err) {
-                console.error('Error updating transaction:', err);
-                return res.status(500).json({ error: 'Failed to update transaction' });
+                console.error(`Error updating transaction ${id}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
             res.json({ message: 'Transaction updated successfully' });
         });
@@ -42,8 +54,8 @@ const transactionController = {
         const { id } = req.params;
         Transaction.delete(id, (err, result) => {
             if (err) {
-                console.error('Error deleting transaction:', err);
-                return res.status(500).json({ error: 'Failed to delete transaction' });
+                console.error(`Error deleting transaction ${id}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
             res.json({ message: 'Transaction deleted successfully' });
         });
@@ -53,8 +65,8 @@ const transactionController = {
         const { projectId } = req.params;
         Transaction.getStatsByProjectId(projectId, (err, results) => {
             if (err) {
-                console.error('Error fetching financial summary:', err);
-                return res.status(500).json({ error: 'Failed to fetch financial summary' });
+                console.error(`Error fetching financial summary for project ${projectId}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             // Process stats into a summary
@@ -87,7 +99,6 @@ const transactionController = {
 
             summary.cashFlow = summary.paymentIn - summary.paymentOut;
             // Net Margin = Payment In (Revenue) - Payment Out (Expenses) - Material Purchase (Expenses) + Material Return (Credit)
-            // This is a simplified calculation
             summary.netMargin = summary.paymentIn - (summary.paymentOut + summary.materialPurchase - summary.materialReturn);
 
             res.json(summary);

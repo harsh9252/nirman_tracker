@@ -15,7 +15,7 @@ exports.getAllUsers = (req, res) => {
     User.getAll((err, results) => {
         if (err) {
             console.error('Error fetching users:', err);
-            return res.status(500).json({ error: 'Failed to fetch users' });
+            return res.status(500).json({ error: 'Internal server error' });
         }
         res.json(results);
     });
@@ -27,8 +27,8 @@ exports.getUserById = (req, res) => {
 
     User.getById(id, (err, results) => {
         if (err) {
-            console.error('Error fetching user:', err);
-            return res.status(500).json({ error: 'Failed to fetch user' });
+            console.error(`Error fetching user with ID ${id}:`, err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
 
         if (results.length === 0) {
@@ -41,28 +41,14 @@ exports.getUserById = (req, res) => {
 
 // Create new user with auto-generated temporary password
 exports.createUser = async (req, res) => {
-    const { first_name, last_name, email, phone, role, status } = req.body;
-    console.log("FULL REQUEST BODY:", req.body);
-    console.log("ROLE RECEIVED:", role, "TYPE:", typeof role, "LENGTH:", role ? role.length : 'undefined');
+    const { first_name, last_name, email, phone, role, status, permissions } = req.body;
 
-    if (!first_name) {
-        return res.status(400).json({ error: 'First name is required' });
+    if (!first_name || !email || !phone || !role || !status) {
+        return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
-    }
-
-    if (!phone || phone.length !== 10) {
+    if (phone.length !== 10) {
         return res.status(400).json({ error: 'Please enter a valid 10-digit phone number' });
-    }
-
-    if (!role) {
-        return res.status(400).json({ error: 'Role is required' });
-    }
-
-    if (!status) {
-        return res.status(400).json({ error: 'Status is required' });
     }
 
     // Generate username from email (part before @)
@@ -74,8 +60,8 @@ exports.createUser = async (req, res) => {
     // Check if email already exists
     User.checkEmailExists(email, null, (err, results) => {
         if (err) {
-            console.error('Error checking email:', err);
-            return res.status(500).json({ error: 'Failed to create user' });
+            console.error('Error checking email existence:', err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
 
         if (results.length > 0) {
@@ -85,8 +71,8 @@ exports.createUser = async (req, res) => {
         // Check if username already exists
         User.checkUsernameExists(username, null, (err, results) => {
             if (err) {
-                console.error('Error checking username:', err);
-                return res.status(500).json({ error: 'Failed to create user' });
+                console.error('Error checking username existence:', err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             if (results.length > 0) {
@@ -96,8 +82,8 @@ exports.createUser = async (req, res) => {
             // Check if phone already exists
             User.checkPhoneExists(phone, null, (err, results) => {
                 if (err) {
-                    console.error('Error checking phone:', err);
-                    return res.status(500).json({ error: 'Failed to create user' });
+                    console.error('Error checking phone existence:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
                 }
 
                 if (results.length > 0) {
@@ -105,12 +91,12 @@ exports.createUser = async (req, res) => {
                 }
 
                 // Create user with temporary password
-                const userData = { first_name, last_name, email, phone, username, password: tempPassword, role, status };
+                const userData = { first_name, last_name, email, phone, username, password: tempPassword, role, status, permissions };
 
                 User.createManagement(userData, (err, result) => {
                     if (err) {
-                        console.error('Error creating user:', err);
-                        return res.status(500).json({ error: 'Failed to create user' });
+                        console.error('Error in createManagement:', err);
+                        return res.status(500).json({ error: 'Internal server error' });
                     }
 
                     // Return temporary password so admin can share with user
@@ -133,26 +119,17 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
     const { id } = req.params;
     const { first_name, last_name, email, phone, role, status, profile_image, permissions } = req.body;
-    const requestingUser = req.user; // From verifyToken middleware
-
-    console.log('UPDATE USER REQUEST:');
-    console.log('ID:', id);
-    console.log('Requesting user:', requestingUser);
-    console.log('Request body:', req.body);
+    const requestingUser = req.user;
 
     // RBAC: Authorization check - Non-admin can only update themselves
     if (requestingUser.role.toLowerCase() !== 'admin' && requestingUser.id !== parseInt(id)) {
-        return res.status(403).json({
-            error: 'Forbidden',
-            message: 'You can only update your own profile'
-        });
+        return res.status(403).json({ error: 'Access denied: You can only update your own profile' });
     }
 
-    // Get existing user data to preserve role/status for non-admins
     User.getFullProfileById(id, (err, results) => {
         if (err) {
-            console.error('Error fetching user:', err);
-            return res.status(500).json({ error: 'Failed to update user' });
+            console.error(`Error fetching user for update (ID ${id}):`, err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
 
         if (results.length === 0) {
@@ -160,23 +137,19 @@ exports.updateUser = async (req, res) => {
         }
 
         const existingUser = results[0];
-
-        // Determine final role and status based on requesting user's permissions
         let finalRole = role;
         let finalStatus = status;
 
-        // RBAC: Non-admin cannot change role or status
         if (requestingUser.role.toLowerCase() !== 'admin') {
             finalRole = existingUser.role;
             finalStatus = existingUser.status;
         }
 
-        // FIRST: Check task restrictions (most important business rule)
         if (finalStatus === 'Inactive' && existingUser.status !== 'Inactive') {
             User.checkUserIncompleteTasks(id, (taskErr, taskResults) => {
                 if (taskErr) {
                     console.error('Error checking tasks for deactivation:', taskErr);
-                    return res.status(500).json({ error: 'Failed to update user' });
+                    return res.status(500).json({ error: 'Internal server error' });
                 }
 
                 if (taskResults.length > 0) {
@@ -187,52 +160,37 @@ exports.updateUser = async (req, res) => {
                         pendingTasks: taskResults
                     });
                 }
-
-                // No pending tasks, proceed with validation and update
                 validateAndUpdate();
             });
         } else {
-            // Not deactivating, proceed with validation and update
             validateAndUpdate();
         }
 
         function validateAndUpdate() {
-            // THEN: Validate basic fields
-            if (!first_name) {
-                return res.status(400).json({ error: 'First name is required' });
+            if (!first_name || !finalRole || !finalStatus) {
+                return res.status(400).json({ error: 'Missing required fields' });
             }
 
-            if (!finalRole) {
-                return res.status(400).json({ error: 'Role is required' });
-            }
-
-            if (!finalStatus) {
-                return res.status(400).json({ error: 'Status is required' });
-            }
-
-            // Check if email already exists (excluding current user)
             User.checkEmailExists(email, id, (err, results) => {
                 if (err) {
-                    console.error('Error checking email:', err);
-                    return res.status(500).json({ error: 'Failed to update user' });
+                    console.error('Error checking email for update:', err);
+                    return res.status(500).json({ error: 'Internal server error' });
                 }
 
                 if (results.length > 0) {
                     return res.status(400).json({ error: 'Email already exists' });
                 }
 
-                // Check if phone already exists (excluding current user)
                 User.checkPhoneExists(phone, id, (err, results) => {
                     if (err) {
-                        console.error('Error checking phone:', err);
-                        return res.status(500).json({ error: 'Failed to update user' });
+                        console.error('Error checking phone for update:', err);
+                        return res.status(500).json({ error: 'Internal server error' });
                     }
 
                     if (results.length > 0) {
                         return res.status(400).json({ error: 'Phone number already exists' });
                     }
 
-                    // Prepare userData with permissions
                     const userData = {
                         first_name,
                         last_name,
@@ -241,16 +199,13 @@ exports.updateUser = async (req, res) => {
                         role: finalRole,
                         status: finalStatus,
                         profile_image,
-                        permissions: permissions || null  // Don't stringify here - User.update handles it
+                        permissions: permissions || null
                     };
 
-                    console.log('Final userData to update:', userData);
-
-                    // Proceed with update
                     User.update(id, userData, (err, result) => {
                         if (err) {
                             console.error('Error updating user:', err);
-                            return res.status(500).json({ error: 'Failed to update user' });
+                            return res.status(500).json({ error: 'Internal server error' });
                         }
 
                         if (result.affectedRows === 0) {
@@ -350,10 +305,19 @@ exports.deleteUser = (req, res) => {
             });
         }
 
-        // Step 2: No pending tasks → SOFT DELETE user
-        User.softDelete(id, (err, result) => {
+        // Step 2: No pending tasks → HARD DELETE user
+        User.delete(id, (err, result) => {
             if (err) {
-                console.error('Soft delete error:', err);
+                console.error('Delete error:', err);
+
+                // Check for foreign key constraint violation (ER_ROW_IS_REFERENCED_2)
+                if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+                    return res.status(409).json({
+                        error: 'Cannot delete user',
+                        message: 'This user is associated with existing records (projects, tasks, comments, etc.) and cannot be deleted. Please reassign their work or delete the associated records first.'
+                    });
+                }
+
                 return res.status(500).json({ error: 'Failed to delete user' });
             }
 

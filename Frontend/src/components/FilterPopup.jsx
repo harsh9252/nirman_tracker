@@ -82,7 +82,7 @@ export default function FilterPopup({ isOpen, onClose, onApply, currentStatus })
   if (!isOpen) return null;
 
   return (
-    <div ref={popupRef} className="fixed z-[1000] bg-white border border-gray-200 rounded-lg shadow-lg w-32 py-1" style={{
+    <div ref={popupRef} className="fixed z-[1100] bg-white border border-gray-200 rounded-lg shadow-lg w-32 py-1" style={{
       top: position.top,
       right: position.right
     }}>
@@ -90,11 +90,10 @@ export default function FilterPopup({ isOpen, onClose, onApply, currentStatus })
         <button
           key={option.value}
           onClick={() => handleOptionClick(option.value)}
-          className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-gray-50 transition-colors ${
-            selectedStatus === option.value
+          className={`w-full flex items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-gray-50 transition-colors ${selectedStatus === option.value
               ? "bg-blue-50 text-blue-600 font-medium"
               : "text-gray-700"
-          }`}
+            }`}
         >
           <span>{option.label}</span>
           {selectedStatus === option.value && (

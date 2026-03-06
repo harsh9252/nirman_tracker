@@ -24,6 +24,7 @@ import {
 import logo from "../assets/logo-small.png";
 import { useTranslation } from "../services/translationService.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useNavigate } from "react-router-dom";
 
 function SidebarSection({ title }) {
   return (
@@ -73,7 +74,8 @@ function SidebarItem({ icon, label, active, onClick }) {
 
 export default function Sidebar({ activeItem, onNavigate }) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const handleNavigate = (path) => {
     if (onNavigate) {
@@ -82,14 +84,8 @@ export default function Sidebar({ activeItem, onNavigate }) {
   };
 
   const handleLogout = () => {
-    // Clear any stored authentication data
-    localStorage.clear();
-    sessionStorage.clear();
-
-    // Redirect to login page or reload the app
-    // Since there's no login page, we'll redirect to dashboard
-    // In a real app, this would redirect to /login
-    window.location.href = '/';
+    logout();
+    navigate('/login');
   };
 
   // Check if user is admin - admin sees all sections

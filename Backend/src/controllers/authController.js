@@ -147,16 +147,18 @@ class AuthController {
         }
 
         const user = results[0];
+        const userEmail = user.email || email;
 
         // Generate reset token
         const resetToken = jwt.sign(
-          { id: user.id, email },
+          { id: user.id, email: userEmail },
           process.env.JWT_SECRET || 'your-secret-key',
           { expiresIn: '1h' }
         );
 
         // Create reset link
-        const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/reset-password/${resetToken}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const resetLink = `${frontendUrl}/#/reset-password/${resetToken}`;
 
         // Check if email service is configured
         const isEmailConfigured = process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD;

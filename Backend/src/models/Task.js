@@ -5,47 +5,63 @@ class Task {
   // Get all tasks
   static getAll(callback) {
     const sql = `
-      SELECT
-        t.*,
-        CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
-        CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
-      FROM tasks t
-      LEFT JOIN users u1 ON t.assignBy = u1.id
-      LEFT JOIN users u2 ON t.assignTo = u2.id
-      ORDER BY t.createdDate DESC
-    `;
+        SELECT
+          t.*,
+          CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
+          CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
+        FROM tasks t
+        LEFT JOIN users u1 ON t.assignBy = u1.id
+        LEFT JOIN users u2 ON t.assignTo = u2.id
+        ORDER BY t.createdDate DESC
+      `;
     db.query(sql, callback);
   }
 
   // Get task by ID
   static getById(id, callback) {
     const sql = `
-      SELECT
-        t.*,
-        CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
-        CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
-      FROM tasks t
-      LEFT JOIN users u1 ON t.assignBy = u1.id
-      LEFT JOIN users u2 ON t.assignTo = u2.id
-      WHERE t.id = ?
-    `;
+        SELECT
+          t.*,
+          CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
+          CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
+        FROM tasks t
+        LEFT JOIN users u1 ON t.assignBy = u1.id
+        LEFT JOIN users u2 ON t.assignTo = u2.id
+        WHERE t.id = ?
+      `;
     db.query(sql, [parseInt(id)], callback);
   }
 
   // Get tasks by project ID
   static getByProjectId(projectId, callback) {
     const sql = `
-      SELECT
-        t.*,
-        CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
-        CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
-      FROM tasks t
-      LEFT JOIN users u1 ON t.assignBy = u1.id
-      LEFT JOIN users u2 ON t.assignTo = u2.id
-      WHERE t.project_id = ?
-      ORDER BY t.createdDate DESC
-    `;
+        SELECT
+          t.*,
+          CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
+          CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
+        FROM tasks t
+        LEFT JOIN users u1 ON t.assignBy = u1.id
+        LEFT JOIN users u2 ON t.assignTo = u2.id
+        WHERE t.project_id = ?
+        ORDER BY t.createdDate DESC
+      `;
     db.query(sql, [parseInt(projectId)], callback);
+  }
+
+  // Get tasks by lead ID
+  static getByLeadId(leadId, callback) {
+    const sql = `
+        SELECT
+          t.*,
+          CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
+          CONCAT(u2.first_name, ' ', u2.last_name) as assignToName
+        FROM tasks t
+        LEFT JOIN users u1 ON t.assignBy = u1.id
+        LEFT JOIN users u2 ON t.assignTo = u2.id
+        WHERE t.lead_id = ?
+        ORDER BY t.createdDate DESC
+      `;
+    db.query(sql, [parseInt(leadId)], callback);
   }
 
   // Create new task
@@ -63,10 +79,13 @@ class Task {
       dueDate,
       description,
       createdDate,
-      project_id
+      project_id,
+      lead_id,
+      latitude,
+      longitude
     } = taskData;
 
-    const sql = `INSERT INTO tasks (taskNumber, name, projectName, leadName, relatedTo, assignTo, assignBy, priority, status, dueDate, description, createdDate, project_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `INSERT INTO tasks (taskNumber, name, projectName, leadName, relatedTo, assignTo, assignBy, priority, status, dueDate, description, createdDate, project_id, lead_id, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const values = [
       taskNumber,
       name,
@@ -80,7 +99,10 @@ class Task {
       dueDate,
       description || null,
       createdDate,
-      project_id || null
+      project_id || null,
+      lead_id || null,
+      latitude || null,
+      longitude || null
     ];
 
     db.query(sql, values, (err, result) => {
@@ -139,10 +161,13 @@ class Task {
       dueDate,
       description,
       createdDate,
-      project_id
+      project_id,
+      lead_id,
+      latitude,
+      longitude
     } = taskData;
 
-    const sql = `UPDATE tasks SET taskNumber=?, name=?, projectName=?, leadName=?, relatedTo=?, assignTo=?, assignBy=?, priority=?, status=?, dueDate=?, description=?, createdDate=?, project_id=? WHERE id=?`;
+    const sql = `UPDATE tasks SET taskNumber=?, name=?, projectName=?, leadName=?, relatedTo=?, assignTo=?, assignBy=?, priority=?, status=?, dueDate=?, description=?, createdDate=?, project_id=?, lead_id=?, latitude=?, longitude=? WHERE id=?`;
     const values = [
       taskNumber,
       name,
@@ -157,6 +182,9 @@ class Task {
       description || null,
       createdDate,
       project_id || null,
+      lead_id || null,
+      latitude || null,
+      longitude || null,
       id
     ];
 

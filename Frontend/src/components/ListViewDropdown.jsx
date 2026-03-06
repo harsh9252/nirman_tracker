@@ -1,5 +1,5 @@
-// ListViewDropdown.jsx - Salesforce Style with Star Icon Inside
 import React, { useEffect, useRef, useState } from "react";
+import useOnClickOutside from "../hooks/useOnClickOutside";
 
 /**
  * Props:
@@ -21,8 +21,8 @@ import React, { useEffect, useRef, useState } from "react";
 export default function ListViewDropdown({
   views = [],
   currentViewId = null,
-  onChange = () => {},
-  onPinToggle = () => {},
+  onChange = () => { },
+  onPinToggle = () => { },
   className = ""
 }) {
   const [open, setOpen] = useState(false);
@@ -32,10 +32,10 @@ export default function ListViewDropdown({
 
   const currentView = views.find(v => v.id === currentViewId) || views[0] || { name: "All Tasks" };
 
+  // Close dropdown when clicking outside
+  useOnClickOutside(ref, () => setOpen(false));
+
   useEffect(() => {
-    const onDocClick = (e) => {
-      if (open && ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
     const onKey = (e) => {
       if (!open) return;
       if (e.key === "Escape") setOpen(false);
@@ -57,17 +57,15 @@ export default function ListViewDropdown({
         }
       }
     };
-    document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
     };
     // eslint-disable-next-line
   }, [open, views, highlightIndex]);
 
-  useEffect(()=> {
-    if (open) setHighlightIndex(views.findIndex(v=>v.id===currentViewId));
+  useEffect(() => {
+    if (open) setHighlightIndex(views.findIndex(v => v.id === currentViewId));
     else setHighlightIndex(-1);
   }, [open, currentViewId, views]);
 
@@ -121,7 +119,7 @@ export default function ListViewDropdown({
                   data-index={idx}
                   onMouseEnter={() => setHighlightIndex(idx)}
                   onClick={() => { onChange(v.id); setOpen(false); }}
-                  className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-blue-50 ${highlightIndex===idx ? "bg-blue-50 border-r-2 border-blue-500" : ""}`}
+                  className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-blue-50 ${highlightIndex === idx ? "bg-blue-50 border-r-2 border-blue-500" : ""}`}
                   role="option"
                   aria-selected={v.id === currentViewId}
                 >

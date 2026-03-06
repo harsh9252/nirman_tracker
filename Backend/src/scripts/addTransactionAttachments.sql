@@ -1,0 +1,3 @@
+ALTER TABLE transactions 
+ADD COLUMN attachment TEXT DEFAULT NULL,
+ADD COLUMN attachment_name VARCHAR(255) DEFAULT NULL;

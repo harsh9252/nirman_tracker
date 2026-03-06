@@ -4,12 +4,31 @@ const db = require('../config/database');
 class TaskController {
   // Get all tasks
   static getAllTasks(req, res) {
-    const { user_id } = req.query;
+    const { user_id, project_id } = req.query;
 
-    if (user_id) {
+    let sql;
+    let params = [];
+
+    if (project_id) {
+      // Filter by project ID
+      sql = `
+        SELECT 
+          t.*,
+          CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
+          CONCAT(u2.first_name, ' ', u2.last_name) as assignToName,
+          u1.status as assignByStatus,
+          u2.status as assignToStatus
+        FROM tasks t
+        LEFT JOIN users u1 ON t.assignBy = u1.id
+        LEFT JOIN users u2 ON t.assignTo = u2.id
+        WHERE t.project_id = ?
+        ORDER BY t.createdDate DESC
+      `;
+      params = [project_id];
+    } else if (user_id) {
       // Filter tasks for the current user: tasks they created OR tasks assigned to them
-      const sql = `
-        SELECT
+      sql = `
+        SELECT 
           t.*,
           CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
           CONCAT(u2.first_name, ' ', u2.last_name) as assignToName,
@@ -21,29 +40,11 @@ class TaskController {
         WHERE t.assignBy = ? OR t.assignTo = ?
         ORDER BY t.createdDate DESC
       `;
-
-      db.query(sql, [user_id, user_id], (err, results) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-
-        // Ensure dates are properly formatted for consistent frontend handling
-        const formattedResults = results.map(task => {
-          if (task.createdDate) {
-            task.createdDate = new Date(task.createdDate).toISOString();
-          }
-          if (task.dueDate) {
-            task.dueDate = new Date(task.dueDate).toISOString();
-          }
-          return task;
-        });
-
-        res.json(formattedResults);
-      });
+      params = [user_id, user_id];
     } else {
-      // No user_id provided - return ALL tasks (for admin)
-      const sql = `
-        SELECT
+      // No filter provided - return ALL tasks (for admin)
+      sql = `
+        SELECT 
           t.*,
           CONCAT(u1.first_name, ' ', u1.last_name) as assignByName,
           CONCAT(u2.first_name, ' ', u2.last_name) as assignToName,
@@ -54,26 +55,54 @@ class TaskController {
         LEFT JOIN users u2 ON t.assignTo = u2.id
         ORDER BY t.createdDate DESC
       `;
-
-      db.query(sql, (err, results) => {
-        if (err) {
-          return res.status(500).json({ error: err.message });
-        }
-
-        // Ensure dates are properly formatted for consistent frontend handling
-        const formattedResults = results.map(task => {
-          if (task.createdDate) {
-            task.createdDate = new Date(task.createdDate).toISOString();
-          }
-          if (task.dueDate) {
-            task.dueDate = new Date(task.dueDate).toISOString();
-          }
-          return task;
-        });
-
-        res.json(formattedResults);
-      });
     }
+
+    db.query(sql, params, (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      // Ensure dates are properly formatted for consistent frontend handling
+      const formattedResults = results.map(task => {
+        if (task.createdDate) {
+          task.createdDate = new Date(task.createdDate).toISOString();
+        }
+        if (task.dueDate) {
+          task.dueDate = new Date(task.dueDate).toISOString();
+        }
+        return task;
+      });
+
+      res.json(formattedResults);
+    });
+  }
+
+  // Get tasks by Lead ID
+  static getTasksByLead(req, res) {
+    const { leadId } = req.params;
+
+    if (isNaN(leadId)) {
+      return res.status(400).json({ error: 'Invalid lead ID' });
+    }
+
+    Task.getByLeadId(leadId, (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      // Ensure dates are properly formatted for consistent frontend handling
+      const formattedResults = results.map(task => {
+        if (task.createdDate) {
+          task.createdDate = new Date(task.createdDate).toISOString();
+        }
+        if (task.dueDate) {
+          task.dueDate = new Date(task.dueDate).toISOString();
+        }
+        return task;
+      });
+
+      res.json(formattedResults);
+    });
   }
 
   // Get task by ID

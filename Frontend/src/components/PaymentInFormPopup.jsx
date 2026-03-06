@@ -1,37 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiLoader } from 'react-icons/fi';
-import AddBankAccountPopup from './AddBankAccountPopup';
+import { FiX, FiLoader, FiCalendar, FiUser, FiCreditCard, FiAlignLeft, FiHash, FiFileText, FiUpload, FiCheck } from 'react-icons/fi';
 import apiService from '../services/api';
 
-const PaymentInFormPopup = ({ isOpen, onClose, projectName, projectId, onSuccess }) => {
+const PaymentInFormPopup = ({ isOpen, onClose, projectName, projectId, clientName, onSuccess }) => {
     const [formData, setFormData] = useState({
         partyName: '',
         amount: '',
         paymentMethod: 'cash',
-        bankAccount: '',
-        costCode: '',
         referenceNo: '',
         moreDetails: '',
-        date: new Date().toISOString().split('T')[0] // Auto-fetch current date
+        date: new Date().toISOString().split('T')[0]
     });
 
-    const [showBankAccountPopup, setShowBankAccountPopup] = useState(false);
-    const [showMoreDetails, setShowMoreDetails] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const fileInputRef = React.useRef(null);
 
     useEffect(() => {
         if (isOpen) {
-            // Reset form and set current date when popup opens
             setFormData({
-                partyName: '',
+                partyName: clientName || '',
                 amount: '',
                 paymentMethod: 'cash',
-                bankAccount: '',
-                costCode: '',
                 referenceNo: '',
                 moreDetails: '',
                 date: new Date().toISOString().split('T')[0]
             });
+            setSelectedFile(null);
         }
     }, [isOpen]);
 
@@ -39,34 +34,48 @@ const PaymentInFormPopup = ({ isOpen, onClose, projectName, projectId, onSuccess
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.warning('File size too large. Maximum 5MB allowed.');
+                return;
+            }
+            setSelectedFile(file);
+        }
+    };
+
     const handleSubmit = async (e) => {
         if (e) e.preventDefault();
 
         if (!formData.partyName || !formData.amount || !formData.date) {
-            alert('Please fill in all required fields (Party Name, Amount, Date)');
+            toast.warning('Please fill in all required fields (Party Name, Amount, Date)');
             return;
         }
 
         setSubmitting(true);
         try {
-            await apiService.createTransaction({
-                project_id: projectId,
-                type: 'Payment In',
-                party_name: formData.partyName,
-                amount: parseFloat(formData.amount),
-                payment_method: formData.paymentMethod,
-                bank_account: formData.bankAccount,
-                cost_code: formData.costCode,
-                reference_no: formData.referenceNo,
-                date: formData.date,
-                description: formData.moreDetails
-            });
+            const data = new FormData();
+            data.append('project_id', projectId);
+            data.append('type', 'Payment In');
+            data.append('party_name', formData.partyName);
+            data.append('amount', parseFloat(formData.amount));
+            data.append('payment_method', formData.paymentMethod);
+            data.append('reference_no', formData.referenceNo);
+            data.append('date', formData.date);
+            data.append('description', formData.moreDetails);
+
+            if (selectedFile) {
+                data.append('attachment', selectedFile);
+            }
+
+            await apiService.createTransaction(data);
 
             if (onSuccess) onSuccess();
             onClose();
         } catch (error) {
             console.error('Error saving payment in:', error);
-            alert(error.message || 'Failed to save payment in');
+            toast.error(error.message || 'Failed to save payment in');
         } finally {
             setSubmitting(false);
         }
@@ -74,248 +83,213 @@ const PaymentInFormPopup = ({ isOpen, onClose, projectName, projectId, onSuccess
 
     if (!isOpen) return null;
 
+    const inputStyle = "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all";
+    const labelStyle = "block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5";
+
     return (
         <>
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
-                <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1100] p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
                     {/* Header */}
-                    <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+                    <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
                         <div>
-                            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>PAYMENT</h2>
-                            <p className="text-xs text-gray-600" style={{ fontFamily: 'var(--font-family)' }}>{projectName || 'MITTAL MALL'}</p>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-8 bg-emerald-500 rounded-full"></div>
+                                <h2 className="text-xl font-bold text-gray-900 tracking-tight" style={{ fontFamily: 'var(--font-family)' }}>Receive Payment (In)</h2>
+                            </div>
+                            <p className="text-sm text-gray-500 font-medium mt-0.5 ml-4" style={{ fontFamily: 'var(--font-family)' }}>{projectName}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={onClose}
-                                className="text-sm font-medium hover:opacity-80"
-                                style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={submitting}
-                                className="px-4 py-2 text-white text-sm font-medium rounded-lg hover:opacity-90 flex items-center gap-2 min-w-[80px] justify-center"
-                                style={{ backgroundColor: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                            >
-                                {submitting ? <FiLoader className="animate-spin" /> : 'Save'}
-                            </button>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700">
+                            <FiX size={20} />
+                        </button>
+                    </div>
+
+                    {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8">
+
+                        {/* Section 1: Transaction Basics */}
+                        <div>
+                            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <FiAlignLeft /> Transaction Info
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className={labelStyle}>Party Name <span className="text-rose-500">*</span></label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <FiUser />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={formData.partyName}
+                                            readOnly
+                                            className={`${inputStyle} pl-10 bg-gray-100 cursor-not-allowed`}
+                                            placeholder="Client Name"
+                                            style={{ fontFamily: 'var(--font-family)' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className={labelStyle}>Transaction Date <span className="text-rose-500">*</span></label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                            <FiCalendar />
+                                        </div>
+                                        <input
+                                            type="date"
+                                            value={formData.date}
+                                            onChange={(e) => handleInputChange('date', e.target.value)}
+                                            className={`${inputStyle} pl-10`}
+                                            style={{ fontFamily: 'var(--font-family)' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className={labelStyle}>Amount <span className="text-rose-500">*</span></label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-emerald-500 font-bold">
+                                            ₹
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={formData.amount}
+                                            onChange={(e) => handleInputChange('amount', e.target.value)}
+                                            className={`${inputStyle} pl-8 text-lg font-bold text-emerald-600`}
+                                            placeholder="0.00"
+                                            style={{ fontFamily: 'var(--font-family)' }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 2: Payment Details */}
+                        <div>
+                            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <FiCreditCard /> Payment Details
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                                    <label className={labelStyle}>Payment Method</label>
+                                    <div className="flex gap-4 mt-2">
+                                        {['cash', 'bank', 'cheque'].map((method) => (
+                                            <label key={method} className={`
+                                                flex-1 cursor-pointer relative
+                                                ${formData.paymentMethod === method ? '' : 'hover:bg-gray-100'}
+                                                transition-all rounded-lg
+                                            `}>
+                                                <input
+                                                    type="radio"
+                                                    name="paymentMethod"
+                                                    value={method}
+                                                    checked={formData.paymentMethod === method}
+                                                    onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
+                                                    className="peer sr-only"
+                                                />
+                                                <div className={`
+                                                    text-center py-2.5 rounded-lg border text-sm font-bold uppercase tracking-wide transition-all
+                                                    ${formData.paymentMethod === method
+                                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-sm ring-1 ring-emerald-100'
+                                                        : 'bg-white text-gray-500 border-gray-200'}
+                                                `}>
+                                                    {method === 'bank' ? 'Bank Transfer' : method}
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                                {(formData.paymentMethod === 'bank' || formData.paymentMethod === 'cheque') && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                                        <div className="md:col-span-2">
+                                            <label className={labelStyle}>Reference No.</label>
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                                    <FiHash />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={formData.referenceNo}
+                                                    onChange={(e) => handleInputChange('referenceNo', e.target.value)}
+                                                    className={`${inputStyle} pl-10`}
+                                                    placeholder="Cheque/Ref No."
+                                                    style={{ fontFamily: 'var(--font-family)' }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Section 3: Additional Info */}
+                        <div>
+                            <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <FiFileText /> Additional Info
+                            </h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelStyle}>Remarks / Notes</label>
+                                    <textarea
+                                        value={formData.moreDetails}
+                                        onChange={(e) => handleInputChange('moreDetails', e.target.value)}
+                                        className={`${inputStyle} resize-none min-h-[80px]`}
+                                        placeholder="Add any relevant details about this payment..."
+                                        style={{ fontFamily: 'var(--font-family)' }}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className={labelStyle}>Attachments</label>
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                        accept="image/*,.pdf"
+                                    />
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current.click()}
+                                            className="px-4 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-emerald-400 hover:text-emerald-600 transition-all flex items-center gap-2"
+                                            style={{ fontFamily: 'var(--font-family)' }}
+                                        >
+                                            <FiUpload />
+                                            {selectedFile ? 'Change File' : 'Upload Receipt/Invoice'}
+                                        </button>
+                                        {selectedFile && (
+                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold">
+                                                <span className="truncate max-w-[150px]">{selectedFile.name}</span>
+                                                <button onClick={() => setSelectedFile(null)} className="hover:text-rose-600"><FiX /></button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Form Content */}
-                    <form onSubmit={handleSubmit} className="p-3 space-y-2.5">
-                        {/* Payment In Header with Date */}
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-base font-bold text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>Payment In</h3>
-                            <div className="flex items-center gap-2 text-sm text-gray-700" style={{ fontFamily: 'var(--font-family)' }}>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <input
-                                    type="date"
-                                    value={formData.date}
-                                    onChange={(e) => handleInputChange('date', e.target.value)}
-                                    className="border-0 text-sm"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Party Name */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                PARTY NAME
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={formData.partyName}
-                                    onChange={(e) => handleInputChange('partyName', e.target.value)}
-                                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    placeholder=""
-                                />
-                                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Amount */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                AMOUNT
-                            </label>
-                            <input
-                                type="number"
-                                value={formData.amount}
-                                onChange={(e) => handleInputChange('amount', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                                placeholder=""
-                            />
-                        </div>
-
-                        {/* Payment Method */}
-                        <div className="border border-gray-300 rounded-lg p-3">
-                            <p className="text-sm font-medium text-gray-900 mb-2" style={{ fontFamily: 'var(--font-family)' }}>
-                                Payment Method: {formData.paymentMethod === 'bank' ? 'Bank Transfer' : formData.paymentMethod === 'cheque' ? 'Cheque' : 'Cash'}
-                            </p>
-                            <div className="flex items-center gap-4">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="paymentMethod"
-                                        value="cash"
-                                        checked={formData.paymentMethod === 'cash'}
-                                        onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
-                                        className="w-4 h-4"
-                                    />
-                                    <span className="text-sm" style={{ fontFamily: 'var(--font-family)' }}>Cash</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="paymentMethod"
-                                        value="bank"
-                                        checked={formData.paymentMethod === 'bank'}
-                                        onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
-                                        className="w-4 h-4"
-                                    />
-                                    <span className="text-sm" style={{ fontFamily: 'var(--font-family)' }}>Bank Transfer</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="radio"
-                                        name="paymentMethod"
-                                        value="cheque"
-                                        checked={formData.paymentMethod === 'cheque'}
-                                        onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
-                                        className="w-4 h-4"
-                                    />
-                                    <span className="text-sm" style={{ fontFamily: 'var(--font-family)' }}>Cheque</span>
-                                </label>
-                            </div>
-
-                            {/* Bank Account Dropdown (shown when Bank Transfer or Cheque is selected) */}
-                            {(formData.paymentMethod === 'bank' || formData.paymentMethod === 'cheque') && (
-                                <div className="mt-2.5 space-y-2">
-                                    <div className="relative">
-                                        <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                            BANK ACCOUNT
-                                        </label>
-                                        <select
-                                            value={formData.bankAccount}
-                                            onChange={(e) => handleInputChange('bankAccount', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm appearance-none bg-white"
-                                            style={{ fontFamily: 'var(--font-family)' }}
-                                        >
-                                            <option value="">Select Bank Account</option>
-                                            <option value="account1">HDFC Bank - ****1234</option>
-                                            <option value="account2">ICICI Bank - ****5678</option>
-                                        </select>
-                                        <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowBankAccountPopup(true)}
-                                        className="w-full py-2 text-white text-sm font-medium rounded-lg hover:opacity-90"
-                                        style={{ backgroundColor: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                                    >
-                                        + New Account
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Cost Code */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                ADD COST CODE
-                            </label>
-                            <select
-                                value={formData.costCode}
-                                onChange={(e) => handleInputChange('costCode', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm appearance-none bg-white"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                            >
-                                <option value="">Select Cost Code</option>
-                                <option value="code1">Material</option>
-                                <option value="code2">Labour</option>
-                                <option value="code3">Equipment</option>
-                            </select>
-                            <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
-
-                        {/* Reference No */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                REFERENCE NO.
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.referenceNo}
-                                onChange={(e) => handleInputChange('referenceNo', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                                placeholder=""
-                            />
-                        </div>
-
-                        {/* More Details (Optional) */}
-                        <div>
-                            <button
-                                type="button"
-                                onClick={() => setShowMoreDetails(!showMoreDetails)}
-                                className="flex items-center justify-between w-full text-sm font-medium text-gray-900 py-2"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                            >
-                                More Details (Optional)
-                                <svg className={`w-4 h-4 transition-transform ${showMoreDetails ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
-                            {showMoreDetails && (
-                                <textarea
-                                    value={formData.moreDetails}
-                                    onChange={(e) => handleInputChange('moreDetails', e.target.value)}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm resize-none"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    rows="3"
-                                    placeholder="Add additional details..."
-                                />
-                            )}
-                        </div>
-
-                        {/* Upload Files */}
-                        <div className="text-center py-4">
-                            <button
-                                type="button"
-                                className="inline-flex items-center gap-2 text-sm font-medium hover:opacity-80"
-                                style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                            >
-                                Upload Files
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                </svg>
-                            </button>
-                        </div>
-                    </form>
+                    {/* Footer */}
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
+                        <button
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:text-gray-800 hover:bg-white border border-transparent hover:border-gray-200 transition-all"
+                            style={{ fontFamily: 'var(--font-family)' }}
+                        >
+                            CANCEL
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-all flex items-center gap-2"
+                            style={{ fontFamily: 'var(--font-family)' }}
+                        >
+                            {submitting ? <FiLoader className="animate-spin" /> : <><FiCheck /> CONFIRM RECEIPT</>}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Add Bank Account Popup */}
-            <AddBankAccountPopup
-                isOpen={showBankAccountPopup}
-                onClose={() => setShowBankAccountPopup(false)}
-            />
         </>
     );
 };

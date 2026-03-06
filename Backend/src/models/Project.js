@@ -9,10 +9,13 @@ class Project {
                 c.client_name,
                 c.company_name,
                 c.address as client_address,
-                CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+                CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+                p.assigned_to,
+                CONCAT(ua.first_name, ' ', ua.last_name) as assigned_to_name
             FROM projects p
             LEFT JOIN clients c ON p.client_id = c.id
             LEFT JOIN users u ON p.created_by = u.id
+            LEFT JOIN users ua ON p.assigned_to = ua.id
         `;
 
         const values = [];
@@ -49,10 +52,13 @@ class Project {
                 c.address as client_address,
                 c.phone as client_phone,
                 c.email as client_email,
-                CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+                CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+                p.assigned_to,
+                CONCAT(ua.first_name, ' ', ua.last_name) as assigned_to_name
             FROM projects p
             LEFT JOIN clients c ON p.client_id = c.id
             LEFT JOIN users u ON p.created_by = u.id
+            LEFT JOIN users ua ON p.assigned_to = ua.id
             WHERE p.id = ?
         `;
 
@@ -84,10 +90,13 @@ class Project {
                 c.client_name,
                 c.company_name,
                 c.address as client_address,
-                CONCAT(u.first_name, ' ', u.last_name) as created_by_name
+                CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
+                p.assigned_to,
+                CONCAT(ua.first_name, ' ', ua.last_name) as assigned_to_name
             FROM projects p
             LEFT JOIN clients c ON p.client_id = c.id
             LEFT JOIN users u ON p.created_by = u.id
+            LEFT JOIN users ua ON p.assigned_to = ua.id
             WHERE p.client_id = ?
         `;
 
@@ -135,8 +144,8 @@ class Project {
             INSERT INTO projects 
             (project_name, client_id, project_type, status, start_date, 
              expected_completion_date, actual_completion_date, estimated_budget, 
-             actual_cost, description, scope_of_work, created_by) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             actual_cost, description, scope_of_work, created_by, assigned_to) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
         const values = [
@@ -151,7 +160,8 @@ class Project {
             actual_cost || null,
             description || null,
             scope_of_work || null,
-            created_by || null
+            created_by || null,
+            projectData.assigned_to || null
         ];
 
         db.query(sql, values, callback);
@@ -185,7 +195,8 @@ class Project {
                 estimated_budget = ?,
                 actual_cost = ?,
                 description = ?,
-                scope_of_work = ?
+                scope_of_work = ?,
+                assigned_to = ?
             WHERE id = ?
         `;
 
@@ -201,6 +212,7 @@ class Project {
             actual_cost || null,
             description || null,
             scope_of_work || null,
+            projectData.assigned_to || null,
             id
         ];
 

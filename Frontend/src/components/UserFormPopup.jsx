@@ -1,153 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FiX } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
+import apiService from "../services/api";
+import InputField from "./common/InputField";
+import SelectField from "./common/SelectField";
 
-// InputField component moved outside to prevent re-creation on each render
-const InputField = ({ label, required, type = "text", value, onChange, placeholder, error, ...rest }) => (
-  <div className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-    <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-      {label}{required && <span style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)' }} className="ml-1">*</span>}
-    </label>
-    <input
-      type={type}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      style={{
-        width: '100%',
-        height: 'var(--input-height)',
-        padding: 'var(--input-padding)',
-        paddingTop: '16px', // Extra top padding to accommodate the label
-        paddingLeft: '12px', // Extra left padding to accommodate the label
-        fontSize: 'var(--placeholder-font-size)',
-        fontFamily: 'var(--font-family)',
-        fontWeight: 'normal',
-        lineHeight: '24px',
-        border: `1px solid ${error ? 'var(--secondary-color)' : 'var(--input-border-color)'}`,
-        borderRadius: 'var(--input-border-radius)',
-        backgroundColor: 'var(--input-bg-color)',
-        color: 'var(--input-text-color)',
-        outline: 'none',
-        transition: 'border-color 0.2s',
-      }}
-      onFocus={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-focus-border-color)'}
-      onBlur={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-border-color)'}
-      {...rest}
-    />
-    {error && (
-      <p style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)', fontSize: 'var(--error-font-size)', marginTop: '4px' }}>
-        {error}
-      </p>
-    )}
-  </div>
-);
-
-const SelectField = ({ label, required, options = [], value, onChange, placeholder, disabled = false }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const selectRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (isOpen && selectRef.current && !selectRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
-  const handleSelect = (option) => {
-    if (disabled) return; // Don't allow selection if disabled
-    onChange(option); // This updates the parent state
-    setIsOpen(false);
-  };
-
-  const handleClick = () => {
-    if (!disabled) {
-      setIsOpen(!isOpen);
-    }
-  };
-
-  return (
-    <div ref={selectRef} className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-      <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-        {label}{required && <span style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)' }} className="ml-1">*</span>}
-      </label>
-      <div
-        onClick={handleClick}
-        style={{
-          width: '100%',
-          height: 'var(--input-height)',
-          padding: 'var(--input-padding)',
-          paddingTop: '16px', // Extra top padding to accommodate the label
-          paddingLeft: '12px', // Consistent left padding
-          fontSize: 'var(--placeholder-font-size)',
-          fontFamily: 'var(--font-family)',
-          fontWeight: 'normal',
-          lineHeight: '24px',
-          border: '1px solid var(--input-border-color)',
-          borderRadius: 'var(--input-border-radius)',
-          backgroundColor: disabled ? '#f3f4f6' : 'var(--input-bg-color)',
-          color: disabled ? '#6b7280' : 'var(--input-text-color)',
-          outline: 'none',
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          transition: 'border-color 0.2s',
-          opacity: disabled ? 0.7 : 1,
-        }}
-        onFocus={(e) => !disabled && (e.target.style.borderColor = 'var(--input-focus-border-color)')}
-        onBlur={(e) => e.target.style.borderColor = 'var(--input-border-color)'}
-      >
-        <span style={{
-          color: value ? (disabled ? '#6b7280' : 'var(--input-text-color)') : 'var(--input-placeholder-color)',
-          fontSize: 'var(--placeholder-font-size)',
-          fontFamily: 'var(--font-family)',
-          lineHeight: '24px',
-        }}>
-          {value || placeholder}
-        </span>
-        {!disabled && (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-          </svg>
-        )}
-      </div>
-      {isOpen && !disabled && (
-        <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto mt-1 w-full">
-          {options.map((option, index) => (
-            <div
-              key={index}
-              onClick={() => handleSelect(option)}
-              style={{
-                padding: '2px 12px',
-                fontSize: 'var(--placeholder-font-size)',
-                fontFamily: 'var(--font-family)',
-                fontWeight: 'normal',
-                color: option === value ? 'var(--input-text-color)' : 'var(--input-text-color)',
-                cursor: 'pointer',
-                backgroundColor: option === value ? '#f3f4f6' : '#ffffff',
-                borderBottom: index < options.length - 1 ? '1px solid #f1f5f9' : 'none',
-              }}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#f8fafc'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = option === value ? '#f3f4f6' : '#ffffff'}
-            >
-              {option}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Phone Number Field Component
+// Phone Number Field Component (internal for now, could be commonized later)
 const PhoneField = ({ label, required, value, onChange, placeholder, error }) => {
   const handlePhoneChange = (e) => {
     let input = e.target.value.replace(/\D/g, ''); // Remove non-digits
@@ -174,27 +32,25 @@ const PhoneField = ({ label, required, value, onChange, placeholder, error }) =>
             width: '100%',
             height: 'var(--input-height)',
             padding: 'var(--input-padding)',
-            paddingTop: '16px',
-            paddingLeft: '12px', // Normal left padding
             fontSize: 'var(--placeholder-font-size)',
             fontFamily: 'var(--font-family)',
             fontWeight: 'normal',
             lineHeight: '24px',
-            border: `1px solid ${error ? 'var(--secondary-color)' : 'var(--input-border-color)'}`,
+            border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
             borderRadius: 'var(--input-border-radius)',
             backgroundColor: 'var(--input-bg-color)',
             color: 'var(--input-text-color)',
             outline: 'none',
             transition: 'border-color 0.2s',
           }}
-          onFocus={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-focus-border-color)'}
-          onBlur={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-border-color)'}
+          onFocus={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-focus-border-color)'}
+          onBlur={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-border-color)'}
         />
       </div>
       {error && (
-        <p style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)', fontSize: 'var(--error-font-size)', marginTop: '4px' }}>
+        <span style={{ color: '#ef4444', fontFamily: 'var(--font-family)', fontSize: '11px', marginTop: '4px', display: 'block' }}>
           {error}
-        </p>
+        </span>
       )}
     </div>
   );
@@ -203,22 +59,17 @@ const PhoneField = ({ label, required, value, onChange, placeholder, error }) =>
 // Permissions Field Component
 const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isProjectOpen, setIsProjectOpen] = useState(false);
   const selectRef = useRef(null);
-  const projectRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (isOpen && selectRef.current && !selectRef.current.contains(e.target)) {
         setIsOpen(false);
       }
-      if (isProjectOpen && projectRef.current && !projectRef.current.contains(e.target)) {
-        setIsProjectOpen(false);
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, isProjectOpen]);
+  }, [isOpen]);
 
   const toggleAction = (moduleKey, action) => {
     const modulePermissions = permissions[moduleKey] || { view: false, create: false, edit: false, delete: false };
@@ -231,24 +82,54 @@ const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
     });
   };
 
-  const toggleProject = (projectId) => {
-    const projectsPermissions = permissions.projects || { view: false, create: false, edit: false, delete: false, accessible_projects: [] };
-    const currentAccessible = Array.isArray(projectsPermissions.accessible_projects) ? projectsPermissions.accessible_projects : [];
 
-    let newAccessible;
-    if (currentAccessible.includes(projectId)) {
-      newAccessible = currentAccessible.filter(id => id !== projectId);
-    } else {
-      newAccessible = [...currentAccessible, projectId];
-    }
+
+  const toggleModule = (moduleKey) => {
+    const modulePermissions = permissions[moduleKey] || { view: false, create: false, edit: false, delete: false };
+    const allActions = ['view', 'create', 'edit', 'delete'];
+    const isAllSelected = allActions.every(action => modulePermissions[action]);
+
+    const newModulePermissions = { ...(permissions[moduleKey] || {}) };
+    allActions.forEach(action => {
+      newModulePermissions[action] = !isAllSelected;
+    });
 
     onChange({
       ...permissions,
-      projects: {
-        ...projectsPermissions,
-        accessible_projects: newAccessible
-      }
+      [moduleKey]: newModulePermissions
     });
+  };
+
+  const toggleAllModules = () => {
+    const allActions = ['view', 'create', 'edit', 'delete'];
+    const allModules = ['leads', 'clients', 'projects', 'tasks', 'employees', 'users'];
+
+    // Check if ALL permissions in ALL modules are selected
+    const isAllSelected = allModules.every(moduleKey => {
+      const modulePerms = permissions[moduleKey] || {};
+      return allActions.every(action => modulePerms[action]);
+    });
+
+    const newPermissions = { ...permissions };
+    allModules.forEach(moduleKey => {
+      const modulePerms = { ...(permissions[moduleKey] || {}) };
+      allActions.forEach(action => {
+        modulePerms[action] = !isAllSelected;
+      });
+      newPermissions[moduleKey] = modulePerms;
+    });
+
+    onChange(newPermissions);
+  };
+
+  const isModuleFullySelected = (moduleKey) => {
+    const modulePermissions = permissions[moduleKey];
+    if (!modulePermissions) return false;
+    return ['view', 'create', 'edit', 'delete'].every(action => modulePermissions[action]);
+  };
+
+  const areAllModulesFullySelected = () => {
+    return ['leads', 'clients', 'projects', 'tasks', 'employees', 'users'].every(moduleKey => isModuleFullySelected(moduleKey));
   };
 
   const modules = [
@@ -260,14 +141,36 @@ const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
     { key: 'users', label: 'Users' }
   ];
 
+  const projectTabModules = [
+    { key: 'project-info', label: 'Project Info' },
+    { key: 'transaction', label: 'Transaction' },
+
+    { key: 'attendance', label: 'Attendance' },
+    { key: 'task', label: 'Task' },
+    { key: 'material', label: 'Material' }
+  ];
+
   const actions = ['view', 'create', 'edit', 'delete'];
 
-  const getProjectName = (id) => {
-    const project = projects.find(p => p.id === id);
-    return project ? project.project_name : `Project #${id}`;
+  const toggleProjectTab = (tabKey) => {
+    const projectTabs = permissions.project_tabs || {
+      'project-info': true,
+      'transaction': true,
+
+      'attendance': true,
+      'task': true,
+      'material': true
+    };
+    onChange({
+      ...permissions,
+      project_tabs: {
+        ...projectTabs,
+        [tabKey]: !projectTabs[tabKey]
+      }
+    });
   };
 
-  const selectedProjects = permissions.projects?.accessible_projects || [];
+
 
   return (
     <div className="space-y-6">
@@ -281,7 +184,16 @@ const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)' }}>Module</th>
+                <th className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider items-center gap-2 flex" style={{ fontFamily: 'var(--font-family)' }}>
+                  <input
+                    type="checkbox"
+                    checked={areAllModulesFullySelected()}
+                    onChange={toggleAllModules}
+                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary transition-all cursor-pointer"
+                    title="Select All Modules"
+                  />
+                  Module
+                </th>
                 {actions.map(action => (
                   <th key={action} className="px-4 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider text-center" style={{ fontFamily: 'var(--font-family)' }}>
                     {action}
@@ -292,7 +204,18 @@ const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
             <tbody>
               {modules.map((module, idx) => (
                 <tr key={module.key} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} border-b border-gray-100 last:border-0`}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-700" style={{ fontFamily: 'var(--font-family)' }}>{module.label}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-700" style={{ fontFamily: 'var(--font-family)' }}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isModuleFullySelected(module.key)}
+                        onChange={() => toggleModule(module.key)}
+                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary transition-all cursor-pointer"
+                        title={`Select all permissions for ${module.label}`}
+                      />
+                      {module.label}
+                    </div>
+                  </td>
                   {actions.map(action => (
                     <td key={action} className="px-4 py-3 text-center">
                       <div className="flex justify-center">
@@ -312,59 +235,29 @@ const PermissionsField = ({ label, permissions, onChange, projects = [] }) => {
         </div>
       </div>
 
-      <div ref={projectRef} className="relative">
-        <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-          Assigned Projects Access
-        </label>
-        <div
-          onClick={() => setIsProjectOpen(!isProjectOpen)}
-          className={`min-h-[48px] px-3 py-2 border border-gray-300 rounded-xl bg-white flex flex-wrap gap-1.5 items-center cursor-pointer hover:border-primary transition-all shadow-sm ${isProjectOpen ? 'ring-1 ring-primary border-primary' : ''}`}
-        >
-          {selectedProjects.length === 0 ? (
-            <span className="text-gray-400 text-sm" style={{ fontFamily: 'var(--font-family)' }}>Select projects user can access...</span>
-          ) : (
-            selectedProjects.map(id => (
-              <span key={id} className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-primary border border-blue-100 rounded-lg text-xs font-medium">
-                {getProjectName(id)}
-                <FiX
-                  size={12}
-                  className="hover:text-red-500 transition-colors"
-                  onClick={(e) => { e.stopPropagation(); toggleProject(id); }}
-                />
-              </span>
-            ))
-          )}
+      <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-gray-50/30">
+        <div className="bg-gray-100/80 px-4 py-2 border-b border-gray-200">
+          <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest" style={{ fontFamily: 'var(--font-family)' }}>
+            Project Section Tab Permissions
+          </h3>
         </div>
-
-        {isProjectOpen && (
-          <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-[60] max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
-            {projects.length === 0 ? (
-              <div className="p-4 text-center text-sm text-gray-500">No projects found</div>
-            ) : (
-              <div className="py-1">
-                {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    onClick={() => toggleProject(project.id)}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors cursor-pointer group"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedProjects.includes(project.id)}
-                      readOnly
-                      className="w-4 h-4 text-primary border-gray-300 rounded group-hover:border-primary transition-all"
-                    />
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-gray-700">{project.project_name}</span>
-                      <span className="text-[10px] text-gray-400 uppercase tracking-wider">{project.client_name}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {projectTabModules.map((tab) => (
+            <label key={tab.key} className="flex items-center gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={permissions.project_tabs ? permissions.project_tabs[tab.key] !== false : true}
+                onChange={() => toggleProjectTab(tab.key)}
+                className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary transition-all cursor-pointer"
+              />
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors" style={{ fontFamily: 'var(--font-family)' }}>
+                {tab.label}
+              </span>
+            </label>
+          ))}
+        </div>
       </div>
+
     </div>
   );
 };
@@ -385,12 +278,32 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
     projects: { view: false, create: false, edit: false, delete: false, accessible_projects: [] },
     tasks: { view: false, create: false, edit: false, delete: false },
     employees: { view: false, create: false, edit: false, delete: false },
-    users: { view: false, create: false, edit: false, delete: false }
+    users: { view: false, create: false, edit: false, delete: false },
+    project_tabs: {
+      'project-info': true,
+      'transaction': true,
+      'party': true,
+      'attendance': true,
+      'task': true,
+      'material': true
+    }
   });
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showErrorMessage, setShowErrorMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [errors, setErrors] = useState({});
+
+  // Helper to clear error for a specific field
+  const clearError = (field) => {
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
 
   // Fetch projects for access control
   useEffect(() => {
@@ -449,6 +362,22 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
       }
     });
 
+    // Handle project_tabs separately to ensure defaults for existing users
+    const defaultProjectTabs = {
+      'project-info': true,
+      'transaction': true,
+
+      'attendance': true,
+      'task': true,
+      'material': true
+    };
+
+    if (parsedPerms.project_tabs) {
+      upgradedPerms.project_tabs = { ...defaultProjectTabs, ...parsedPerms.project_tabs };
+    } else {
+      upgradedPerms.project_tabs = defaultProjectTabs;
+    }
+
     return upgradedPerms;
   };
 
@@ -471,6 +400,9 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
     } else {
       resetForm();
     }
+    setErrors({});
+    setShowErrorMessage(false);
+    setErrorMessage("");
   }, [editUser, isOpen]);
 
   // Auto-populate username with email when creating new user
@@ -494,54 +426,61 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
       projects: { view: false, create: false, edit: false, delete: false, accessible_projects: [] },
       tasks: { view: false, create: false, edit: false, delete: false },
       employees: { view: false, create: false, edit: false, delete: false },
-      users: { view: false, create: false, edit: false, delete: false }
+      users: { view: false, create: false, edit: false, delete: false },
+      project_tabs: {
+        'project-info': true,
+        'transaction': true,
+
+        'attendance': true,
+        'task': true,
+        'material': true
+      }
     });
   };
 
-  const handleSave = async () => {
+  const validateForm = () => {
+    const newErrors = {};
+
     if (!firstName.trim()) {
-      setErrorMessage('First name is required');
-      setShowErrorMessage(true);
-      setTimeout(() => setShowErrorMessage(false), 3000);
-      return;
+      newErrors.firstName = 'First name is required';
     }
+
     if (!email.trim()) {
-      setErrorMessage('Email is required');
-      setShowErrorMessage(true);
-      setTimeout(() => setShowErrorMessage(false), 3000);
-      return;
-    }
-    if (!username.trim()) {
-      setErrorMessage('Username is required');
-      setShowErrorMessage(true);
-      setTimeout(() => setShowErrorMessage(false), 3000);
-      return;
-    }
-    if (!phone.trim()) {
-      setErrorMessage('Phone number is required');
-      setShowErrorMessage(true);
-      setTimeout(() => setShowErrorMessage(false), 3000);
-      return;
-    }
-    // Only validate role and status if user can edit them (admin or creating new user)
-    if (!isNonAdminEditingSelf) {
-      if (!role) {
-        setErrorMessage('Please select a role');
-        setShowErrorMessage(true);
-        setTimeout(() => setShowErrorMessage(false), 3000);
-        return;
-      }
-      if (!status) {
-        setErrorMessage('Please select a status');
-        setShowErrorMessage(true);
-        setTimeout(() => setShowErrorMessage(false), 3000);
-        return;
+      newErrors.email = 'Email is required';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        newErrors.email = 'Invalid email format';
       }
     }
 
-    // Validate phone number is exactly 10 digits
-    if (phone.length !== 10) {
-      setErrorMessage('Please enter a valid 10-digit phone number');
+    if (!username.trim()) {
+      newErrors.username = 'Username is required';
+    }
+
+    if (!phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (phone.length !== 10) {
+      newErrors.phone = 'Please enter a valid 10-digit phone number';
+    }
+
+    // Only validate role and status if user can edit them (admin or creating new user)
+    if (!isNonAdminEditingSelf) {
+      if (!role) {
+        newErrors.role = 'Please select a role';
+      }
+      if (!status) {
+        newErrors.status = 'Please select a status';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      setErrorMessage('Please fix the validation errors');
       setShowErrorMessage(true);
       setTimeout(() => setShowErrorMessage(false), 3000);
       return;
@@ -647,27 +586,30 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
                 label="FIRST NAME"
                 required
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => { setFirstName(e.target.value); clearError('firstName'); }}
                 placeholder="Enter first name"
+                error={errors.firstName}
               />
             </div>
             <div>
               <InputField
                 label="LAST NAME"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => { setLastName(e.target.value); clearError('lastName'); }}
                 placeholder="Enter last name"
+                error={errors.lastName}
               />
             </div>
             <div>
               <SelectField
                 label="ROLE"
                 required
-                options={["Admin", "HR", "Site Manager", "Office Staff", "Field Rep"]}
+                options={["Admin", "Project Manager", "HR", "Site Manager", "Office Staff", "Field Rep"]}
                 value={isNonAdminEditingSelf ? editUser.role : role}
-                onChange={setRole}
+                onChange={(val) => { setRole(val); clearError('role'); }}
                 placeholder="Select role"
                 disabled={isNonAdminEditingSelf}
+                error={errors.role}
               />
             </div>
             <div>
@@ -676,9 +618,10 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
                 required
                 options={["Active", "Inactive"]}
                 value={isNonAdminEditingSelf ? editUser.status : status}
-                onChange={setStatus}
+                onChange={(val) => { setStatus(val); clearError('status'); }}
                 placeholder="Select status"
                 disabled={isNonAdminEditingSelf}
+                error={errors.status}
               />
             </div>
             <div>
@@ -687,8 +630,9 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
                 required
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); clearError('email'); }}
                 placeholder="Enter email address"
+                error={errors.email}
               />
             </div>
             <div>
@@ -696,8 +640,9 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
                 label="USERNAME"
                 required
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); clearError('username'); }}
                 placeholder="Username will auto-populate from email"
+                error={errors.username}
               />
             </div>
             <div>
@@ -705,8 +650,9 @@ export default function UserFormPopup({ isOpen, onClose, onSubmit, editUser }) {
                 label="PHONE NUMBER"
                 required
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => { setPhone(e.target.value); clearError('phone'); }}
                 placeholder="Enter 10-digit phone number"
+                error={errors.phone}
               />
             </div>
             <div className="md:col-span-2">

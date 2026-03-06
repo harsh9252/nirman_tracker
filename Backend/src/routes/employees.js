@@ -8,10 +8,11 @@ const employeeController = require('../controllers/employeeController');
 router.use(verifyToken);
 
 router.get('/', checkPermission('employees', 'view'), employeeController.getAllEmployees);
+router.get('/salary-types', verifyToken, employeeController.getSalaryTypes);
+router.get('/project/:projectId', checkPermission('employees', 'view'), employeeController.getEmployeesByProject);
 router.get('/:id', checkPermission('employees', 'view'), employeeController.getEmployeeById);
 router.post('/', checkPermission('employees', 'create'), employeeController.createEmployee);
 router.put('/:id', checkPermission('employees', 'edit'), employeeController.updateEmployee);
-router.get('/project/:projectId', checkPermission('employees', 'view'), employeeController.getEmployeesByProject);
 router.delete('/:id', checkPermission('employees', 'delete'), employeeController.deleteEmployee);
 
 module.exports = router;

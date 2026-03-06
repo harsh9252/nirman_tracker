@@ -188,24 +188,23 @@ class User {
     db.query(sql, [userId, userId, userId, userId, userId, userId], callback);
   }
 
-  // Soft delete user (task validation is now done in controller)
-  static softDelete(id, callback) {
+  // Hard delete user
+  static delete(id, callback) {
     // Delete notifications first
     const deleteNotificationsSql = 'DELETE FROM notifications WHERE user_id = ?';
 
     db.query(deleteNotificationsSql, [id], (deleteNotifErr, deleteNotifResult) => {
       if (deleteNotifErr) return callback(deleteNotifErr, null);
 
-      // Soft delete: Mark user as deleted instead of hard delete
-      // Task assignments remain intact - only status check was performed
-      const softDeleteUserSql = "UPDATE users SET status = 'Deleted' WHERE id = ?";
-      db.query(softDeleteUserSql, [id], callback);
+      // Hard delete: Remove user record from database
+      const deleteUserSql = "DELETE FROM users WHERE id = ?";
+      db.query(deleteUserSql, [id], callback);
     });
   }
 
   // Check if email exists
   static checkEmailExists(email, excludeId, callback) {
-    let sql = 'SELECT id FROM users WHERE email = ?';
+    let sql = "SELECT id FROM users WHERE email = ? AND status != 'Deleted'";
     let values = [email];
 
     if (excludeId) {
@@ -218,7 +217,7 @@ class User {
 
   // Check if username exists
   static checkUsernameExists(username, excludeId, callback) {
-    let sql = 'SELECT id FROM users WHERE username = ?';
+    let sql = "SELECT id FROM users WHERE username = ? AND status != 'Deleted'";
     let values = [username];
 
     if (excludeId) {
@@ -231,7 +230,7 @@ class User {
 
   // Check if phone exists
   static checkPhoneExists(phone, excludeId, callback) {
-    let sql = 'SELECT id FROM users WHERE phone = ?';
+    let sql = "SELECT id FROM users WHERE phone = ? AND status != 'Deleted'";
     let values = [phone];
 
     if (excludeId) {

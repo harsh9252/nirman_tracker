@@ -23,6 +23,11 @@ const projectRoutes = require('./src/routes/projects');
 const transactionRoutes = require('./src/routes/transactions');
 const employeeRoutes = require('./src/routes/employees');
 const attendanceRoutes = require('./src/routes/attendance');
+const materialRequestRoutes = require('./src/routes/materialRequests');
+const inventoryRoutes = require('./src/routes/inventory');
+const projectRateRoutes = require('./src/routes/projectRates');
+const payrollRoutes = require('./src/routes/payroll');
+
 
 const app = express();
 const server = http.createServer(app);
@@ -45,6 +50,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 console.log('Registering auth routes at /api/auth');
@@ -71,6 +77,11 @@ console.log('Registering employee routes at /api/employees');
 app.use('/api/employees', employeeRoutes);
 console.log('Registering attendance routes at /api/attendance');
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/material-requests', materialRequestRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/project-rates', projectRateRoutes);
+app.use('/api/payroll', payrollRoutes);
+
 
 console.log('All API routes registered successfully');
 

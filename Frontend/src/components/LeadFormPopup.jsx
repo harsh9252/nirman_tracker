@@ -15,6 +15,7 @@ const InputField = ({
   placeholder,
   helperText,
   helperTextColor,
+  error,
   ...rest
 }) => (
   <div
@@ -56,7 +57,7 @@ const InputField = ({
         fontSize: "var(--placeholder-font-size)",
         fontFamily: "var(--font-family)",
         fontWeight: "normal",
-        border: `1px solid ${helperTextColor === "red" ? "#ef4444" : "var(--input-border-color)"}`,
+        border: `1px solid ${error || helperTextColor === "red" ? "#ef4444" : "var(--input-border-color)"}`,
         borderRadius: "var(--input-border-radius)",
         backgroundColor: "var(--input-bg-color)",
         color: "var(--input-text-color)",
@@ -64,28 +65,28 @@ const InputField = ({
         transition: "border-color 0.2s",
       }}
       onFocus={(e) =>
-        (e.target.style.borderColor =
-          helperTextColor === "red"
-            ? "#ef4444"
-            : "var(--input-focus-border-color)")
+      (e.target.style.borderColor =
+        error || helperTextColor === "red"
+          ? "#ef4444"
+          : "var(--input-focus-border-color)")
       }
       onBlur={(e) =>
-        (e.target.style.borderColor =
-          helperTextColor === "red" ? "#ef4444" : "var(--input-border-color)")
+      (e.target.style.borderColor =
+        error || helperTextColor === "red" ? "#ef4444" : "var(--input-border-color)")
       }
       {...rest}
     />
-    {helperText && (
+    {(error || helperText) && (
       <span
         style={{
           fontSize: "11px",
-          color: helperTextColor || "#6b7280",
+          color: error ? "#ef4444" : (helperTextColor || "#6b7280"),
           fontFamily: "var(--font-family)",
           marginTop: "4px",
           display: "block",
         }}
       >
-        {helperText}
+        {error || helperText}
       </span>
     )}
   </div>
@@ -199,9 +200,7 @@ export default function LeadFormPopup({
   const [contactName, setContactName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [contactNameError, setContactNameError] = useState("");
-  const [phoneError, setPhoneError] = useState("");
+  const [errors, setErrors] = useState({});
   const [company, setCompany] = useState("");
 
   // ---- Added states for previously non-editable fields ----
@@ -240,9 +239,6 @@ export default function LeadFormPopup({
       setDate(new Date().toISOString().slice(0, 10));
       setPhone("");
       setEmail("");
-      setEmailError("");
-      setContactNameError("");
-      setPhoneError("");
       setCompany("");
       setAddress("");
       setLeadType("");
@@ -251,6 +247,7 @@ export default function LeadFormPopup({
       setLastContactedDate("");
       setLeadAssignee("");
       setDescription("");
+      setErrors({});
     }
   }, [isOpen, isEdit]);
 
@@ -260,9 +257,6 @@ export default function LeadFormPopup({
       setDate(formatDateForInput(editLead.date));
       setPhone(editLead.phone || "");
       setEmail(editLead.email || "");
-      setEmailError("");
-      setContactNameError("");
-      setPhoneError("");
       setCompany(editLead.company_name || "");
       setAddress(editLead.address || "");
       setLeadType(editLead.lead_type || "");
@@ -271,15 +265,13 @@ export default function LeadFormPopup({
       setLastContactedDate(formatDateForInput(editLead.last_contacted_date));
       setLeadAssignee(editLead.lead_assignee || "");
       setDescription(editLead.description || "");
+      setErrors({});
     } else {
       // Reset for new lead
       setContactName("");
       setDate(new Date().toISOString().slice(0, 10));
       setPhone("");
       setEmail("");
-      setEmailError("");
-      setContactNameError("");
-      setPhoneError("");
       setCompany("");
       setAddress("");
       setLeadType("");
@@ -288,8 +280,20 @@ export default function LeadFormPopup({
       setLastContactedDate("");
       setLeadAssignee("");
       setDescription("");
+      setErrors({});
     }
   }, [isEdit, editLead]);
+
+  // Helper to clear error for a specific field
+  const clearError = (field) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
 
   // Fetch users for Lead Assignee dropdown
   useEffect(() => {
@@ -321,49 +325,40 @@ export default function LeadFormPopup({
   const handleEmailChange = (e) => {
     const value = e.target.value;
     setEmail(value);
+    clearError("email");
 
     // Only show error if user has typed something and it's invalid
     if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      setEmailError("Invalid email format");
-    } else {
-      setEmailError("");
+      setErrors(prev => ({ ...prev, email: "Invalid email format" }));
     }
   };
 
-  const handleSave = async () => {
-    // Reset validation errors
-    setContactNameError("");
-    setPhoneError("");
-    setEmailError("");
-
-    // Validation - collect all errors first
-    let hasErrors = false;
+  const validateForm = () => {
+    const newErrors = {};
 
     if (!contactName.trim()) {
-      setContactNameError("Contact name is required");
-      hasErrors = true;
+      newErrors.contactName = "Contact name is required";
     }
 
     if (!phone.trim()) {
-      setPhoneError("Phone number is required");
-      hasErrors = true;
+      newErrors.phone = "Phone number is required";
     } else {
-      // Phone validation: exactly 10 digits
       const phoneDigits = phone.replace(/\D/g, "");
       if (phoneDigits.length !== 10) {
-        setPhoneError("Phone number must be exactly 10 digits");
-        hasErrors = true;
+        newErrors.phone = "Phone number must be exactly 10 digits";
       }
     }
 
-    // Email validation: valid format if provided
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setEmailError("Invalid email format");
-      hasErrors = true;
+      newErrors.email = "Invalid email format";
     }
 
-    // Return if there are any errors
-    if (hasErrors) {
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
       return;
     }
 
@@ -403,6 +398,7 @@ export default function LeadFormPopup({
     value,
     onChange,
     placeholder,
+    error,
   }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -466,7 +462,7 @@ export default function LeadFormPopup({
             padding: "var(--input-padding)",
             fontSize: "var(--input-font-size)",
             fontFamily: "var(--font-family)",
-            border: `1px solid var(--input-border-color)`,
+            border: `1px solid ${error ? "#ef4444" : "var(--input-border-color)"}`,
             borderRadius: "var(--input-border-radius)",
             backgroundColor: "var(--input-bg-color)",
             color: value
@@ -480,10 +476,10 @@ export default function LeadFormPopup({
             transition: "border-color 0.2s",
           }}
           onFocus={(e) =>
-            (e.target.style.borderColor = "var(--input-focus-border-color)")
+            (e.target.style.borderColor = error ? "#ef4444" : "var(--input-focus-border-color)")
           }
           onBlur={(e) =>
-            (e.target.style.borderColor = "var(--input-border-color)")
+            (e.target.style.borderColor = error ? "#ef4444" : "var(--input-border-color)")
           }
         >
           <span
@@ -510,6 +506,19 @@ export default function LeadFormPopup({
             />
           </svg>
         </div>
+        {error && (
+          <span
+            style={{
+              fontSize: "11px",
+              color: "#ef4444",
+              fontFamily: "var(--font-family)",
+              marginTop: "4px",
+              display: "block",
+            }}
+          >
+            {error}
+          </span>
+        )}
         {isOpen && (
           <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 w-full mt-1">
             {/* Search input */}
@@ -547,8 +556,8 @@ export default function LeadFormPopup({
                       (e.target.style.backgroundColor = "#f9fafb")
                     }
                     onMouseLeave={(e) =>
-                      (e.target.style.backgroundColor =
-                        option === value ? "#f3f4f6" : "transparent")
+                    (e.target.style.backgroundColor =
+                      option === value ? "#f3f4f6" : "transparent")
                     }
                   >
                     {option}
@@ -658,11 +667,10 @@ export default function LeadFormPopup({
                 value={contactName}
                 onChange={(e) => {
                   setContactName(e.target.value);
-                  if (contactNameError) setContactNameError("");
+                  clearError("contactName");
                 }}
                 placeholder="Enter contact name"
-                helperText={contactNameError}
-                helperTextColor={contactNameError ? "red" : ""}
+                error={errors.contactName}
               />
             </div>
             <div className="md:col-span-1">
@@ -683,14 +691,13 @@ export default function LeadFormPopup({
                 value={phone}
                 onChange={(e) => {
                   handlePhoneChange(e);
-                  if (phoneError) setPhoneError("");
+                  clearError("phone");
                 }}
                 placeholder="Enter 10 digit phone number"
                 maxLength={10}
                 pattern="[0-9]*"
                 inputMode="numeric"
-                helperText={phoneError}
-                helperTextColor={phoneError ? "red" : ""}
+                error={errors.phone}
               />
             </div>
             <div className="md:col-span-1">
@@ -700,8 +707,7 @@ export default function LeadFormPopup({
                 value={email}
                 onChange={handleEmailChange}
                 placeholder="Enter email"
-                helperText={emailError}
-                helperTextColor={emailError ? "red" : ""}
+                error={errors.email}
               />
             </div>
 
@@ -727,7 +733,7 @@ export default function LeadFormPopup({
             <div className="md:col-span-1">
               <SelectField
                 label="LEAD TYPE"
-                options={["Construction", "Interior", "Renovation"]}
+                options={["Construction", "Interior", "Renovation", "Residential", "Commercial", "Other"]}
                 value={leadType}
                 onChange={setLeadType}
                 placeholder="Select lead type"
@@ -787,6 +793,7 @@ export default function LeadFormPopup({
       </div>
 
       {/* Lead Conversion Wizard */}
+      {/* Lead Conversion Wizard */}
       <LeadConversionWizard
         isOpen={showConversionWizard}
         onClose={() => setShowConversionWizard(false)}
@@ -800,6 +807,10 @@ export default function LeadFormPopup({
           setProjectClientId(clientId);
           setPrefilledClientName(leadData.contact_name || leadData.name || "");
           setPrefilledAddress(leadData.address || "");
+          // Pass the lead type as prefilled project type
+          if (leadData.lead_type || leadData.leadType) {
+            setLeadType(leadData.lead_type || leadData.leadType);
+          }
           setShowProjectForm(true);
           setShowConversionWizard(false);
         }}
@@ -823,6 +834,10 @@ export default function LeadFormPopup({
           setProjectClientId(clientId);
           setPrefilledClientName(leadData.contact_name || leadData.name || "");
           setPrefilledAddress(leadData.address || "");
+          // Pass the lead type as prefilled project type
+          if (leadData.lead_type || leadData.leadType) {
+            setLeadType(leadData.lead_type || leadData.leadType);
+          }
           setShowProjectForm(true);
           setShowSuccessPopup(false);
           // Don't close the lead form yet - wait for project form to close
@@ -847,6 +862,7 @@ export default function LeadFormPopup({
         preselectedClientId={projectClientId}
         prefilledClientName={prefilledClientName}
         prefilledAddress={prefilledAddress}
+        prefilledProjectType={leadType}
       />
     </div>
   );

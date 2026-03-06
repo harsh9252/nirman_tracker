@@ -333,22 +333,32 @@ export default function CreatePartyFormPopup({ isOpen, onClose, onSubmit, projec
         setIsSubmitting(true);
 
         try {
-            // Here you would send the data to your backend
+            // Map frontend fields to backend schema
             const partyData = {
-                ...formData,
-                project_id: projectId,
-                id: Math.floor(Math.random() * 10000) // Temporary ID until backend creates it
+                name: formData.party_name,
+                party_type: formData.party_type,
+                party_id_custom: formData.party_id,
+                country_code: formData.country_code,
+                phone: formData.phone_number,
+                email: formData.email,
+                father_name: formData.father_name,
+                joining_date: formData.date_of_joining,
+                address: formData.address,
+                aadhaar_number: formData.aadhar_number,
+                pan_number: formData.pan_number,
+                pf_number: formData.pf_number,
+                uan_number: formData.uan_number,
+                esi_number: formData.esi_number,
+                project_id: projectId
             };
 
-            console.log('Submitting party data:', partyData);
+            console.log('Finalizing initial party data:', partyData);
 
-            // Pass party data to parent for payroll form
+            // Pass party data to parent to open payroll form
             if (onSubmit) onSubmit(partyData);
-
-            // Don't close yet - parent will handle opening payroll form
         } catch (error) {
-            console.error('Error creating party:', error);
-            alert('Failed to create party');
+            console.error('Error in party form:', error);
+            alert('Something went wrong');
         } finally {
             setIsSubmitting(false);
         }

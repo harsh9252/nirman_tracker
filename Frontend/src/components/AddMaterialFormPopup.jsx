@@ -1,55 +1,73 @@
 import React, { useState } from 'react';
 import { FiX } from 'react-icons/fi';
-import AddCategoryPopup from './AddCategoryPopup';
+
 
 const AddMaterialFormPopup = ({ isOpen, onClose, onSave }) => {
     const [formData, setFormData] = useState({
         materialName: '',
-        unit: 'nos',
+        discountType: 'percentage',
+        discountValue: '',
         gstPercent: '18',
-        category: '',
-        hsnSac: '',
-        specifications: ''
+        specifications: '',
+        quantity: '',
+        rate: '',
+        amount: '' // This will now hold the Final Total Amount
     });
 
-    const [categories, setCategories] = useState(['Cement', 'Steel', 'Bricks', 'Sand', 'Aggregate']);
-    const [showCategoryPopup, setShowCategoryPopup] = useState(false);
-    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
-    const units = ['nos', 'kg', 'ltr', 'mtr', 'sq.ft', 'cu.ft', 'bag', 'ton', 'piece'];
     const gstOptions = ['0', '5', '12', '18', '28'];
 
     const handleInputChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const updated = { ...prev, [field]: value };
+
+            // Calculate Amount
+            const qty = parseFloat(field === 'quantity' ? value : prev.quantity) || 0;
+            const rate = parseFloat(field === 'rate' ? value : prev.rate) || 0;
+            const baseAmount = qty * rate;
+
+            // Discount
+            const discountVal = parseFloat(field === 'discountValue' ? value : prev.discountValue) || 0;
+            const discountType = field === 'discountType' ? value : prev.discountType;
+            let discountAmount = 0;
+            if (discountType === 'percentage') {
+                discountAmount = (baseAmount * discountVal) / 100;
+            } else {
+                discountAmount = discountVal;
+            }
+
+            // GST
+            const gstPercent = parseFloat(field === 'gstPercent' ? value : prev.gstPercent) || 0;
+            const taxableAmount = baseAmount - discountAmount;
+            const gstAmount = (taxableAmount * gstPercent) / 100;
+
+            const totalAmount = taxableAmount + gstAmount;
+
+            updated.amount = totalAmount > 0 ? totalAmount.toFixed(2) : '';
+            return updated;
+        });
     };
 
-    const handleCategorySelect = (category) => {
-        if (category === '+ New Category') {
-            setShowCategoryDropdown(false);
-            setShowCategoryPopup(true);
-        } else {
-            handleInputChange('category', category);
-            setShowCategoryDropdown(false);
-        }
-    };
 
-    const handleSaveCategory = (newCategory) => {
-        setCategories(prev => [...prev, newCategory]);
-        handleInputChange('category', newCategory);
-    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (formData.materialName.trim() && formData.category) {
-            onSave(formData);
+        if (formData.materialName.trim()) {
+            // Create the object expected by the parent component (MaterialPurchaseFormPopup)
+            const materialData = {
+                ...formData,
+                totalAmount: formData.amount // Parent expects totalAmount
+            };
+            onSave(materialData);
+
             // Reset form
             setFormData({
                 materialName: '',
-                unit: 'nos',
                 gstPercent: '18',
-                category: '',
-                hsnSac: '',
-                specifications: ''
+                specifications: '',
+                quantity: '',
+                rate: '',
+                amount: ''
             });
             onClose();
         }
@@ -59,7 +77,7 @@ const AddMaterialFormPopup = ({ isOpen, onClose, onSave }) => {
 
     return (
         <>
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1050] p-4">
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1100] p-4">
                 <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                     {/* Header */}
                     <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
@@ -104,26 +122,60 @@ const AddMaterialFormPopup = ({ isOpen, onClose, onSave }) => {
                             />
                         </div>
 
-                        {/* Unit and GST % */}
+                        {/* Quantity */}
+                        <div className="relative">
+                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
+                                QUANTITY
+                            </label>
+                            <input
+                                type="number"
+                                value={formData.quantity}
+                                onChange={(e) => handleInputChange('quantity', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                                style={{ fontFamily: 'var(--font-family)' }}
+                                placeholder="0"
+                            />
+                        </div>
+
+                        {/* Rate */}
+                        <div className="relative">
+                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
+                                RATE
+                            </label>
+                            <input
+                                type="number"
+                                value={formData.rate}
+                                onChange={(e) => handleInputChange('rate', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                                style={{ fontFamily: 'var(--font-family)' }}
+                                placeholder="0.00"
+                            />
+                        </div>
+
+                        {/* Discount and GST % */}
                         <div className="grid grid-cols-2 gap-3">
-                            {/* Unit */}
-                            <div className="relative">
+                            {/* Discount */}
+                            <div className="relative flex">
                                 <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    UNIT
+                                    DISCOUNT
                                 </label>
+                                <input
+                                    type="number"
+                                    value={formData.discountValue}
+                                    onChange={(e) => handleInputChange('discountValue', e.target.value)}
+                                    className="w-full px-3 py-2 border border-r-0 border-gray-300 rounded-l-lg text-sm bg-white"
+                                    style={{ fontFamily: 'var(--font-family)' }}
+                                    placeholder="0"
+                                />
                                 <select
-                                    value={formData.unit}
-                                    onChange={(e) => handleInputChange('unit', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm appearance-none bg-white"
+                                    value={formData.discountType}
+                                    onChange={(e) => handleInputChange('discountType', e.target.value)}
+                                    className="w-20 px-2 py-2 border border-l-0 border-gray-300 rounded-r-lg text-sm bg-gray-50 focus:outline-none"
                                     style={{ fontFamily: 'var(--font-family)' }}
                                 >
-                                    {units.map(unit => (
-                                        <option key={unit} value={unit}>{unit}</option>
-                                    ))}
+                                    <option value="percentage">%</option>
+                                    <option value="flat">₹</option>
                                 </select>
-                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
                             </div>
 
                             {/* GST % */}
@@ -147,103 +199,6 @@ const AddMaterialFormPopup = ({ isOpen, onClose, onSave }) => {
                             </div>
                         </div>
 
-                        {/* Discount and GST % (secondary) */}
-                        <div className="grid grid-cols-2 gap-3">
-                            {/* Discount */}
-                            <div className="relative">
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    DISCOUNT
-                                </label>
-                                <select
-                                    value={formData.discount || '₹'}
-                                    onChange={(e) => handleInputChange('discount', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm appearance-none bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                >
-                                    <option value="₹">₹</option>
-                                    <option value="%">%</option>
-                                </select>
-                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
-
-                            {/* GST % (additional) */}
-                            <div className="relative">
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    GST %
-                                </label>
-                                <select
-                                    value={formData.gstPercent}
-                                    onChange={(e) => handleInputChange('gstPercent', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm appearance-none bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                >
-                                    {gstOptions.map(gst => (
-                                        <option key={gst} value={gst}>{gst}</option>
-                                    ))}
-                                </select>
-                                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        {/* Category */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                CATEGORY
-                            </label>
-                            <div
-                                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white cursor-pointer flex items-center justify-between"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                            >
-                                <span className={formData.category ? 'text-gray-900' : 'text-gray-400'}>
-                                    {formData.category || 'Select Category'}
-                                </span>
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
-                            {showCategoryDropdown && (
-                                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
-                                    {categories.map((category, index) => (
-                                        <div
-                                            key={index}
-                                            onClick={() => handleCategorySelect(category)}
-                                            className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                                            style={{ fontFamily: 'var(--font-family)' }}
-                                        >
-                                            {category}
-                                        </div>
-                                    ))}
-                                    <div
-                                        onClick={() => handleCategorySelect('+ New Category')}
-                                        className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm font-medium border-t border-gray-200"
-                                        style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                                    >
-                                        + New Category
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* HSN/SAC */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                HSN/SAC
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.hsnSac}
-                                onChange={(e) => handleInputChange('hsnSac', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                                placeholder="HSN/SAC"
-                            />
-                        </div>
-
                         {/* Specifications */}
                         <div className="relative">
                             <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
@@ -254,20 +209,30 @@ const AddMaterialFormPopup = ({ isOpen, onClose, onSave }) => {
                                 onChange={(e) => handleInputChange('specifications', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none bg-white"
                                 style={{ fontFamily: 'var(--font-family)' }}
-                                rows="4"
+                                rows="3"
                                 placeholder=""
+                            />
+                        </div>
+
+                        {/* Amount - Now at the last */}
+                        <div className="relative">
+                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
+                                TOTAL AMOUNT
+                            </label>
+                            <input
+                                type="number"
+                                value={formData.amount}
+                                readOnly
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-blue-50 text-blue-900 font-bold text-lg" // Highlighted
+                                style={{ fontFamily: 'var(--font-family)' }}
+                                placeholder="0.00"
                             />
                         </div>
                     </form>
                 </div>
             </div>
 
-            {/* Add Category Popup */}
-            <AddCategoryPopup
-                isOpen={showCategoryPopup}
-                onClose={() => setShowCategoryPopup(false)}
-                onSave={handleSaveCategory}
-            />
+
         </>
     );
 };

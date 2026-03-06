@@ -139,24 +139,29 @@
 /* Language Dropdown Menu Styles */
 .language-dropdown-menu {
   position: absolute;
-  z-index: 1000; /* High z-index to ensure it's above other elements */
-  pointer-events: auto !important; /* Ensure clicks are captured */
+  z-index: 1000;
+  /* High z-index to ensure it's above other elements */
+  pointer-events: auto !important;
+  /* Ensure clicks are captured */
 }
 
 .language-dropdown-button {
   cursor: pointer;
-  user-select: none; /* Prevent text selection */
+  user-select: none;
+  /* Prevent text selection */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
 }
 
 .language-dropdown-button:hover {
-  background-color: #f3f4f6; /* Light gray hover effect */
+  background-color: #f3f4f6;
+  /* Light gray hover effect */
 }
 
 .language-dropdown-button.selected {
-  background-color: #dbeafe; /* Light blue for selected */
+  background-color: #dbeafe;
+  /* Light blue for selected */
 }
 
 /* User Dropdown Menu Styles */

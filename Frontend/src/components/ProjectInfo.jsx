@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiEdit2, FiCheck, FiX, FiUser, FiDollarSign, FiFileText, FiUsers, FiPackage, FiChevronLeft, FiChevronRight, FiMapPin, FiActivity, FiLayers, FiAlignLeft, FiList, FiClock, FiArrowRightCircle, FiCreditCard, FiCalendar, FiChevronDown, FiSearch } from 'react-icons/fi';
-import { FaTrash } from 'react-icons/fa';
+import { FiEdit2, FiCheck, FiX, FiUser, FiDollarSign, FiFileText, FiUsers, FiPackage, FiChevronLeft, FiChevronRight, FiMapPin, FiActivity, FiLayers, FiAlignLeft, FiList, FiClock, FiArrowRightCircle, FiCreditCard, FiCalendar, FiChevronDown, FiSearch, FiAlertCircle, FiRefreshCcw } from 'react-icons/fi';
+import { FaTrash, FaRupeeSign } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 import apiService from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import AttendanceFormPopup from './AttendanceFormPopup';
 import CreatePartyFormPopup from './CreatePartyFormPopup';
 import PayrollDetailsFormPopup from './PayrollDetailsFormPopup';
@@ -9,9 +11,22 @@ import AttendanceListItem from './AttendanceListItem';
 import PaymentInFormPopup from './PaymentInFormPopup';
 import MaterialPurchaseFormPopup from './MaterialPurchaseFormPopup';
 import MaterialReturnFormPopup from './MaterialReturnFormPopup';
+import MaterialRequestFormPopup from './MaterialRequestFormPopup';
+import MaterialUsageFormPopup from './MaterialUsageFormPopup';
+import MaterialUsageReturnFormPopup from './MaterialUsageReturnFormPopup';
 import PaymentOutFormPopup from './PaymentOutFormPopup';
+import SalaryPaymentPopup from './SalaryPaymentPopup';
+
+import TaskFormPopup from './TaskFormPopup';
+import TransactionTable from './TransactionTable';
+import SelectEmployeePopup from './SelectEmployeePopup';
+import ConfirmationPopup from './ConfirmationPopup';
+import useOnClickOutside from '../hooks/useOnClickOutside';
+import { formatDateForInput, formatDateForDisplay } from '../utils/dateUtils';
+
 
 const ProjectInfo = ({ selectedProject, onClose }) => {
+    const { user } = useAuth();
     if (!selectedProject) return null;
 
     const [activeTab, setActiveTab] = useState('project-info');
@@ -19,6 +34,7 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
     const [editedData, setEditedData] = useState({});
     const [saving, setSaving] = useState(false);
     const [clients, setClients] = useState([]);
+    const [users, setUsers] = useState([]);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isAttendanceFormOpen, setIsAttendanceFormOpen] = useState(false);
 
@@ -26,7 +42,6 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
     const [activeAttendanceFilter, setActiveAttendanceFilter] = useState('all');
     const [isCreatePartyFormOpen, setIsCreatePartyFormOpen] = useState(false);
     const [selectedPartyType, setSelectedPartyType] = useState('Worker');
-    const [showAddDropdown, setShowAddDropdown] = useState(false);
 
     // Payroll workflow state
     const [isPayrollFormOpen, setIsPayrollFormOpen] = useState(false);
@@ -36,10 +51,20 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
     // Transaction section state
     const [showTransactionDropdown, setShowTransactionDropdown] = useState(false);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
-    const [attendanceActionMenuOpen, setAttendanceActionMenuOpen] = useState(false);
     const [showPaymentInForm, setShowPaymentInForm] = useState(false);
     const [showMaterialPurchaseForm, setShowMaterialPurchaseForm] = useState(false);
     const [showMaterialReturnForm, setShowMaterialReturnForm] = useState(false);
+    const [showMaterialRequestForm, setShowMaterialRequestForm] = useState(false);
+    const [showMaterialUsageForm, setShowMaterialUsageForm] = useState(false);
+    const [showUsageReturnForm, setShowUsageReturnForm] = useState(false);
+    const [selectedIssue, setSelectedIssue] = useState(null);
+    const [materialRequests, setMaterialRequests] = useState([]);
+    const [loadingRequests, setLoadingRequests] = useState(false);
+    const [materialActiveSubTab, setMaterialActiveSubTab] = useState('requests'); // 'requests', 'stock', 'history'
+    const [stockSummary, setStockSummary] = useState([]);
+    const [inventoryHistory, setInventoryHistory] = useState([]);
+    const [loadingInventory, setLoadingInventory] = useState(false);
+
     const [showPaymentOutForm, setShowPaymentOutForm] = useState(false);
     const [transactions, setTransactions] = useState([]);
     const [financialSummary, setFinancialSummary] = useState({
@@ -60,19 +85,146 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
     const [attendanceSummary, setAttendanceSummary] = useState([]);
     const [loadingAttendance, setLoadingAttendance] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSelectEmployeeOpen, setIsSelectEmployeeOpen] = useState(false);
+
+    // Task and Material Tab states
+    const [projectTasks, setProjectTasks] = useState([]);
+    const [loadingTasks, setLoadingTasks] = useState(false);
+    const [showTaskForm, setShowTaskForm] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+
+    // Payroll Tab states
+    const [payrollSlips, setPayrollSlips] = useState([]);
+    const [loadingPayroll, setLoadingPayroll] = useState(false);
+    const [payrollMonth, setPayrollMonth] = useState(new Date().getMonth() + 1);
+    const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
+    const [showPaymentForm, setShowPaymentForm] = useState(false);
+    const [selectedSlip, setSelectedSlip] = useState(null);
+
+    // Confirmation Popup State
+    const [confirmPopup, setConfirmPopup] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        onConfirm: () => { }
+    });
+
+    // Refs for click outside
+    const transactionDropdownRef = React.useRef(null);
+
+    // Click outside handlers
+    useOnClickOutside(transactionDropdownRef, () => setShowTransactionDropdown(false));
 
     useEffect(() => {
         fetchClients();
+        fetchUsers();
     }, []);
 
     useEffect(() => {
         if (activeTab === 'transaction') {
             fetchTransactions();
             fetchFinancialSummary();
-        } else if (activeTab === 'party') { // Only fetch parties for 'party' tab
-            fetchProjectEmployees();
+
+        } else if (activeTab === 'task') {
+            fetchProjectTasks();
+        } else if (activeTab === 'material') {
+            fetchMaterialRequests();
+            fetchInventoryData();
         }
     }, [activeTab, selectedProject.id]);
+
+    const fetchMaterialRequests = async () => {
+        if (selectedProject?.id) {
+            setLoadingRequests(true);
+            try {
+                const data = await apiService.getMaterialRequestsByProject(selectedProject.id);
+                setMaterialRequests(data || []);
+            } catch (error) {
+                console.error('Error fetching material requests:', error);
+            } finally {
+                setLoadingRequests(false);
+            }
+        }
+    };
+
+    const fetchInventoryData = async () => {
+        if (selectedProject?.id) {
+            setLoadingInventory(true);
+            try {
+                const summary = await apiService.getStockSummary(selectedProject.id);
+                setStockSummary(summary || []);
+                const history = await apiService.getProjectInventory(selectedProject.id);
+                setInventoryHistory(history || []);
+            } catch (error) {
+                console.error('Error fetching inventory data:', error);
+            } finally {
+                setLoadingInventory(false);
+            }
+        }
+    };
+
+    const fetchPayrollSlips = async () => {
+        if (!selectedProject?.id) return;
+        setLoadingPayroll(true);
+        try {
+            const slips = await apiService.getSalarySlipsByProject(
+                selectedProject.id,
+                payrollMonth,
+                payrollYear
+            );
+            setPayrollSlips(slips || []);
+        } catch (error) {
+            console.error('Error fetching payroll slips:', error);
+            toast.error('Failed to load payroll data');
+        } finally {
+            setLoadingPayroll(false);
+        }
+    };
+
+    const handleGeneratePayroll = async () => {
+        setLoadingPayroll(true);
+        try {
+            const employees = await apiService.getEmployeesByProject(selectedProject.id);
+            const promises = employees.map(emp =>
+                apiService.generateSalarySlip({
+                    employee_id: emp.id,
+                    month: payrollMonth,
+                    year: payrollYear
+                })
+            );
+            await Promise.all(promises);
+            toast.success('Payroll generated successfully');
+            fetchPayrollSlips();
+        } catch (error) {
+            console.error('Error generating payroll:', error);
+            toast.error('Failed to generate payroll');
+        } finally {
+            setLoadingPayroll(false);
+        }
+    };
+
+    const handleRecordPayment = async (paymentData) => {
+        try {
+            await apiService.recordSalaryPayment({
+                salary_slip_id: selectedSlip.id,
+                employee_id: selectedSlip.employee_id,
+                ...paymentData
+            });
+            toast.success('Payment recorded successfully');
+            setShowPaymentForm(false);
+            fetchPayrollSlips();
+        } catch (error) {
+            console.error('Error recording payment:', error);
+            toast.error('Failed to record payment');
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'payroll') {
+            fetchPayrollSlips();
+        }
+    }, [activeTab, payrollMonth, payrollYear]);
+
 
     useEffect(() => {
         if (activeTab === 'attendance') {
@@ -92,23 +244,39 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
             const employees = await apiService.getEmployeesByProject(selectedProject.id);
             // Map employees to the same format as parties for consistent rendering
             const mappedEmployees = (employees || []).map(emp => ({
-                id: emp.id, // using real numeric ID
+                id: emp.id,
                 party_name: emp.name,
-                party_type: 'Worker',
+                party_type: emp.party_type || 'Worker',
+                party_id: emp.party_id_custom,
                 designation: emp.designation,
                 phone: emp.phone,
                 phone_number: emp.phone,
                 country_code: '+91',
                 email: emp.email,
                 salary_amount: emp.salary,
-                salary_period: emp.employment_type === 'Monthly' ? 'Month' :
+                salary_period: emp.salary_period || (emp.employment_type === 'Monthly' ? 'Month' :
                     emp.employment_type === 'Daily Wage' ? 'Day' :
-                        emp.employment_type || 'Month',
+                        emp.employment_type || 'Month'),
                 is_employee: true,
                 original_id: emp.id,
                 status: emp.status,
                 employment_type: emp.employment_type,
-                profile_image: emp.profile_image
+                profile_image: emp.profile_image,
+                // Add extended fields
+                father_name: emp.father_name,
+                address: emp.address,
+                aadhaar_number: emp.aadhaar_number,
+                pan_number: emp.pan_number,
+                pf_number: emp.pf_number,
+                uan_number: emp.uan_number,
+                esi_number: emp.esi_number,
+                shift_hours: emp.shift_hours,
+                shift_period: emp.shift_period,
+                overtime_amount: emp.overtime_amount,
+                overtime_period: emp.overtime_period,
+                cost_code: emp.cost_code,
+                salary_calculation_method: emp.salary_calculation_method,
+                role: emp.role || 'Employee'
             }));
             setPartiesList(mappedEmployees);
 
@@ -139,7 +307,7 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
         }
     };
 
-    const handleAttendanceStatusChange = async (employeeId, status, notes = '') => {
+    const handleAttendanceStatusChange = async (employeeId, status, shiftHours = 8.0, notes = '') => {
         try {
             // attendanceDate is already in YYYY-MM-DD format
             await apiService.recordAttendance({
@@ -147,13 +315,13 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                 project_id: selectedProject.id,
                 attendance_date: attendanceDate,
                 status: status,
-                shift_hours: 8.0, // Default for now
+                shift_hours: shiftHours,
                 notes: notes
             });
             fetchAttendanceData(); // Refresh records
         } catch (error) {
             console.error('Error recording attendance:', error);
-            alert('Failed to record attendance');
+            toast.error('Failed to record attendance');
         }
     };
 
@@ -178,6 +346,34 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
         }
     };
 
+    const fetchProjectTasks = async () => {
+        setLoadingTasks(true);
+        try {
+            const data = await apiService.getTasks({ project_id: selectedProject.id });
+            setProjectTasks(data || []);
+        } catch (error) {
+            console.error('Error fetching project tasks:', error);
+        } finally {
+            setLoadingTasks(false);
+        }
+    };
+
+    const handleTaskSubmit = async (taskData) => {
+        try {
+            if (editingTask) {
+                await apiService.updateTask(editingTask.id, taskData);
+            } else {
+                await apiService.createTask(taskData);
+            }
+            fetchProjectTasks();
+            setShowTaskForm(false);
+            setEditingTask(null);
+        } catch (error) {
+            console.error('Error saving task:', error);
+            toast.error('Failed to save task. Please try again.');
+        }
+    };
+
     const fetchClients = async () => {
         try {
             const clientsData = await apiService.getClients();
@@ -187,36 +383,22 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
         }
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
+    const fetchUsers = async () => {
+        try {
+            const usersData = await apiService.getUsers();
+            setUsers(usersData);
+        } catch (error) {
+            console.error('Error fetching users:', error);
+        }
     };
 
-    const formatDateForInput = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toISOString().split('T')[0];
-    };
-
-    const formatDisplayDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            day: 'numeric',
-            month: 'short',
-            weekday: 'short'
-        });
-    };
+    const formatDate = (dateString) => formatDateForDisplay(dateString);
 
     const formatCurrency = (amount) => {
         if (!amount) return 'N/A';
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat('en-IN', {
             style: 'currency',
-            currency: 'USD'
+            currency: 'INR'
         }).format(amount);
     };
 
@@ -255,7 +437,8 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
             estimated_budget: selectedProject.estimated_budget || '',
             actual_cost: selectedProject.actual_cost || '',
             description: selectedProject.description || '',
-            scope_of_work: selectedProject.scope_of_work || ''
+            scope_of_work: selectedProject.scope_of_work || '',
+            assigned_to: selectedProject.assigned_to || ''
         });
         setIsEditing(true);
     };
@@ -285,10 +468,10 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
             Object.assign(selectedProject, updatedProject);
 
             setIsEditing(false);
-            alert('Project updated successfully!');
+            toast.success('Project updated successfully!');
         } catch (error) {
             console.error('Error updating project:', error);
-            alert(error.message || 'Failed to save project. Please try again.');
+            toast.error(error.message || 'Failed to save project. Please try again.');
         } finally {
             setSaving(false);
         }
@@ -311,14 +494,41 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
         setAttendanceDate(current.toISOString().split('T')[0]);
     };
 
+    const { user: loggedInUser } = useAuth();
+
+    // Filter tabs based on module-level permissions
+    const getPermissions = () => {
+        if (loggedInUser?.role?.toLowerCase() === 'admin') return null; // Admin has all tabs
+        if (!loggedInUser?.permissions) return null;
+
+        const perms = typeof loggedInUser.permissions === 'string'
+            ? JSON.parse(loggedInUser.permissions)
+            : loggedInUser.permissions;
+
+        return perms.project_tabs;
+    };
+
+    const userProjectTabs = getPermissions();
+
     const tabs = [
         { id: 'project-info', label: 'Project Info' },
         { id: 'transaction', label: 'Transaction' },
-        { id: 'party', label: 'Party' },
+
         { id: 'attendance', label: 'Attendance' },
         { id: 'task', label: 'Task' },
         { id: 'material', label: 'Material' },
-    ];
+        { id: 'payroll', label: 'Payroll' },
+    ].filter(tab => {
+        if (!userProjectTabs) return true; // Default to visible if no permissions defined (or admin)
+        return userProjectTabs[tab.id] !== false;
+    });
+
+    // Set initial active tab to the first available permitted tab if original default is restricted
+    useEffect(() => {
+        if (tabs.length > 0 && !tabs.find(t => t.id === activeTab)) {
+            setActiveTab(tabs[0].id);
+        }
+    }, [tabs, activeTab]);
 
     return (
         <div className="flex flex-col h-full bg-white rounded-xl border border-gray-400 overflow-hidden">
@@ -340,33 +550,35 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                         </h2>
                     </div>
                     <div className="flex items-center gap-2">
-                        {isEditing ? (
-                            <>
+                        {activeTab === 'project-info' && (
+                            isEditing ? (
+                                <>
+                                    <button
+                                        onClick={saveProject}
+                                        disabled={saving}
+                                        className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                                        title="Save"
+                                    >
+                                        <FiCheck className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={cancelEditing}
+                                        disabled={saving}
+                                        className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                                        title="Cancel"
+                                    >
+                                        <FiX className="w-5 h-5" />
+                                    </button>
+                                </>
+                            ) : (
                                 <button
-                                    onClick={saveProject}
-                                    disabled={saving}
+                                    onClick={startEditing}
                                     className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-                                    title="Save"
+                                    title="Edit"
                                 >
-                                    <FiCheck className="w-5 h-5" />
+                                    <FiEdit2 className="w-5 h-5" />
                                 </button>
-                                <button
-                                    onClick={cancelEditing}
-                                    disabled={saving}
-                                    className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-                                    title="Cancel"
-                                >
-                                    <FiX className="w-5 h-5" />
-                                </button>
-                            </>
-                        ) : (
-                            <button
-                                onClick={startEditing}
-                                className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
-                                title="Edit"
-                            >
-                                <FiEdit2 className="w-5 h-5" />
-                            </button>
+                            )
                         )}
                     </div>
                 </div>
@@ -427,6 +639,55 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Primary Details */}
                             <div className="lg:col-span-2 space-y-6">
+                                {/* Ownership Card */}
+                                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Created By */}
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">CREATED BY</label>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold uppercase shadow-sm">
+                                                    {selectedProject.created_by_name?.substring(0, 1) || 'U'}
+                                                </div>
+                                                <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>
+                                                    {selectedProject.created_by_name || 'System User'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Assigned To */}
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ASSIGNED TO</label>
+                                            <div className="flex items-center gap-2">
+                                                {isEditing ? (
+                                                    <select
+                                                        value={editedData.assigned_to}
+                                                        onChange={(e) => handleFieldChange('assigned_to', e.target.value)}
+                                                        className="w-full text-sm font-semibold border-b-2 border-blue-100 focus:border-blue-500 outline-none py-0.5 transition-colors bg-transparent"
+                                                        style={{ fontFamily: 'var(--font-family)' }}
+                                                    >
+                                                        <option value="">Unassigned</option>
+                                                        {users.map(user => (
+                                                            <option key={user.id} value={user.id}>
+                                                                {user.first_name} {user.last_name || ''} ({user.role})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <>
+                                                        <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold uppercase shadow-sm">
+                                                            {selectedProject.assigned_to_name?.substring(0, 1) || '?'}
+                                                        </div>
+                                                        <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>
+                                                            {selectedProject.assigned_to_name || 'Unassigned'}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                                     <div className="px-4 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
                                         <FiActivity className="text-blue-500" />
@@ -634,14 +895,14 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                 {/* Financial Card */}
                                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                                     <div className="px-4 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center gap-2">
-                                        <FiDollarSign className="text-emerald-500" />
+                                        <FaRupeeSign className="text-emerald-500" />
                                         <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Financial Overview</span>
                                     </div>
                                     <div className="p-4 space-y-4">
                                         <div className="flex flex-col gap-1">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Estimated Budget</label>
                                             <div className="flex items-center gap-2">
-                                                <FiCreditCard className="text-emerald-500" size={14} />
+                                                <FaRupeeSign className="text-emerald-500" size={14} />
                                                 {isEditing ? (
                                                     <input
                                                         type="number"
@@ -658,7 +919,7 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                         <div className="flex flex-col gap-1 border-t border-gray-50 pt-3">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actual Cost to Date</label>
                                             <div className="flex items-center gap-2">
-                                                <FiDollarSign className="text-rose-500" size={14} />
+                                                <FaRupeeSign className="text-rose-500" size={14} />
                                                 {isEditing ? (
                                                     <input
                                                         type="number"
@@ -688,7 +949,7 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Financial Ledger</h3>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Project Transaction History</p>
                             </div>
-                            <div className="relative">
+                            <div className="relative" ref={transactionDropdownRef}>
                                 <button
                                     onClick={() => setShowTransactionDropdown(!showTransactionDropdown)}
                                     className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center gap-2 active:scale-95"
@@ -716,25 +977,6 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                                 <FiArrowRightCircle size={16} className="rotate-180" />
                                             </div>
                                             PAYMENT OUT
-                                        </button>
-                                        <div className="h-[1px] bg-gray-100 my-1" />
-                                        <button
-                                            onClick={() => { setShowTransactionDropdown(false); setShowMaterialPurchaseForm(true); }}
-                                            className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm font-bold text-blue-600 flex items-center gap-3 transition-colors"
-                                        >
-                                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                                <FiPackage size={16} />
-                                            </div>
-                                            MATERIAL PURCHASE
-                                        </button>
-                                        <button
-                                            onClick={() => { setShowTransactionDropdown(false); setShowMaterialReturnForm(true); }}
-                                            className="w-full text-left px-4 py-3 hover:bg-amber-50 text-sm font-bold text-amber-600 flex items-center gap-3 transition-colors"
-                                        >
-                                            <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                                                <FiPackage size={16} />
-                                            </div>
-                                            MATERIAL RETURN
                                         </button>
                                     </div>
                                 )}
@@ -787,188 +1029,30 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-                                        <FiDollarSign size={24} />
-                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Recent Transactions List */}
+                        {/* Recent Transactions List */}
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
-                                <div className="grid grid-cols-12 gap-4">
-                                    <div className="col-span-6">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Transaction Details</span>
-                                    </div>
-                                    <div className="col-span-3 text-center">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount</span>
-                                    </div>
-                                    <div className="col-span-3 text-right">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status / Date</span>
-                                    </div>
-                                </div>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Transactions</h3>
                             </div>
 
-                            {/* Transaction List */}
-                            <div className="divide-y divide-gray-100">
-                                {loadingTransactions ? (
-                                    <div className="p-12 text-center">
-                                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                                        <p className="text-sm text-gray-500 font-medium">Fetching transactions...</p>
-                                    </div>
-                                ) : transactions.length > 0 ? (
-                                    transactions.map((tx) => (
-                                        <div key={tx.id} className="px-6 py-4 hover:bg-gray-50 transition-colors group">
-                                            <div className="grid grid-cols-12 gap-4 items-center">
-                                                <div className="col-span-6 flex items-center gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.type === 'Payment In' ? 'bg-green-100 text-green-600' :
-                                                        tx.type === 'Payment Out' ? 'bg-rose-100 text-rose-600' :
-                                                            tx.type === 'Material Purchase' ? 'bg-blue-100 text-blue-600' :
-                                                                'bg-amber-100 text-amber-600'
-                                                        }`}>
-                                                        {tx.type === 'Payment In' ? <FiArrowRightCircle size={18} /> :
-                                                            tx.type === 'Payment Out' ? <FiArrowRightCircle size={18} className="rotate-180" /> :
-                                                                <FiPackage size={18} />
-                                                        }
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">{tx.party_name}</p>
-                                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                            {tx.type} {tx.payment_method ? `• ${tx.payment_method.toUpperCase()}` : ''}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="col-span-3 text-center">
-                                                    <p className={`text-sm font-black ${tx.type === 'Payment In' || tx.type === 'Material Return' ? 'text-green-600' : 'text-rose-600'
-                                                        }`}>
-                                                        {tx.type === 'Payment In' || tx.type === 'Material Return' ? '+' : '-'} ₹ {parseFloat(tx.amount).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                                <div className="col-span-3 text-right">
-                                                    <p className="text-sm font-bold text-gray-700">{new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-                                                    <p className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">RECORDED</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    /* Empty State */
-                                    <div className="p-16 text-center">
-                                        <div className="w-20 h-20 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-center mx-auto mb-6">
-                                            <FiList className="text-gray-300" size={40} />
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2 uppercase tracking-wide">No Transactions Recorded</h3>
-                                        <p className="text-sm text-gray-500 max-w-xs mx-auto mb-8 font-medium">Click the "New Transaction" button to start tracking project payments and material procurement.</p>
-                                        <button
-                                            onClick={() => setShowTransactionDropdown(true)}
-                                            className="text-blue-600 font-bold text-sm hover:underline"
-                                        >
-                                            ADD YOUR FIRST TRANSACTION
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Party Tab */}
-                {activeTab === 'party' && (
-                    <div className="p-6 space-y-8 animate-in fade-in duration-500">
-                        {/* Client Overview Card */}
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                            <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
-                                        <FiUser size={20} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Client Details</h3>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Primary Stakeholder</p>
-                                    </div>
-                                </div>
-                                <span className="px-3 py-1 bg-green-50 text-green-700 text-[10px] font-bold rounded-full border border-green-100 uppercase tracking-wider">ACTIVE CLIENT</span>
-                            </div>
-                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Client Name</label>
-                                    <p className="text-sm font-bold text-gray-800">{selectedProject.client_name || 'N/A'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Client Phone</label>
-                                    <p className="text-sm font-bold text-gray-800">{clients.find(c => c.id === selectedProject.client_id)?.phone_number || 'N/A'}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Client Address</label>
-                                    <p className="text-sm font-semibold text-gray-600 leading-tight">{selectedProject.client_address || 'N/A'}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Associated Parties Section */}
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2">Assigned Personnel ({partiesList.length})</h3>
-                                <button
-                                    onClick={() => {
-                                        setSelectedPartyType('Worker');
-                                        setIsCreatePartyFormOpen(true);
-                                    }}
-                                    className="text-[11px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider"
-                                >
-                                    + ADD NEW PARTY
-                                </button>
-                            </div>
-
-                            {partiesList.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {partiesList.map((party) => (
-                                        <div key={party.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-bold">
-                                                    {party.party_name?.substring(0, 2).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-gray-900">{party.party_name}</p>
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{party.party_type} / {party.designation || 'No Role'}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <button
-                                                    onClick={() => {
-                                                        setCurrentPartyData(party);
-                                                        setIsPayrollFormOpen(true);
-                                                    }}
-                                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                                    title="Edit"
-                                                >
-                                                    <FiEdit2 size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (window.confirm('Are you sure you want to delete this staff member from the project?')) {
-                                                            setPartiesList(prev => prev.filter(p => p.id !== party.id));
-                                                        }
-                                                    }}
-                                                    className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                                                    title="Delete"
-                                                >
-                                                    <FaTrash size={14} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
+                            {loadingTransactions ? (
+                                <div className="p-12 text-center">
+                                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                    <p className="text-sm text-gray-500 font-medium">Fetching transactions...</p>
                                 </div>
                             ) : (
-                                <div className="text-center py-10 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
-                                    <FiUsers className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No assigned parties found</p>
-                                </div>
+                                <TransactionTable transactions={transactions} />
                             )}
                         </div>
                     </div>
                 )}
+
+
 
                 {/* Attendance Tab */}
                 {activeTab === 'attendance' && (
@@ -1075,28 +1159,23 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                             </div>
 
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                <div className="flex items-center bg-gray-50 rounded-xl p-1 border border-gray-100 w-full sm:w-auto">
-                                    <button
-                                        onClick={() => setActiveAttendanceFilter('all')}
-                                        className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeAttendanceFilter === 'all' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-                                    >
-                                        ALL STAFF
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveAttendanceFilter('site-staff')}
-                                        className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeAttendanceFilter === 'site-staff' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-                                    >
-                                        SITE STAFF
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveAttendanceFilter('labour-contractor')}
-                                        className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeAttendanceFilter === 'labour-contractor' ? 'bg-white text-blue-600 shadow-sm border border-gray-100' : 'text-gray-500 hover:text-gray-700'}`}
-                                    >
-                                        CONTRACTORS
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100 shadow-inner overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                    {[
+                                        { id: 'all', label: 'ALL' },
+                                        { id: 'employee', label: 'EMPLOYEE' },
+                                        { id: 'office-member', label: 'OFFICE MEMBER' },
+                                        { id: 'worker', label: 'SITE STAFF' },
+                                        { id: 'contractor', label: 'LABOUR CONTRACTOR' }
+                                    ].map(filter => (
+                                        <button
+                                            key={filter.id}
+                                            onClick={() => setActiveAttendanceFilter(filter.id)}
+                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all ${activeAttendanceFilter === filter.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            {filter.label}
+                                        </button>
+                                    ))}
+                                </div>                                <div className="flex items-center gap-3 w-full sm:w-auto">
                                     <div className="relative flex-1 sm:w-64">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                             <FiSearch size={14} />
@@ -1109,47 +1188,13 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                             className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white focus:border-blue-500 outline-none transition-all"
                                         />
                                     </div>
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setAttendanceActionMenuOpen(!attendanceActionMenuOpen)}
-                                            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all active:scale-95"
-                                        >
-                                            <FiUsers size={18} />
-                                            MANAGE
-                                            <FiChevronDown size={14} className={`transition-transform duration-300 ${attendanceActionMenuOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-
-                                        {attendanceActionMenuOpen && (
-                                            <div className="absolute right-0 top-full mt-2 w-full sm:w-[220px] bg-white border border-gray-100 rounded-xl shadow-2xl z-20 py-1 overflow-hidden">
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedPartyType('Worker');
-                                                        setIsCreatePartyFormOpen(true);
-                                                        setAttendanceActionMenuOpen(false);
-                                                    }}
-                                                    className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
-                                                >
-                                                    <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
-                                                        <FiUser size={16} />
-                                                    </div>
-                                                    ADD SITE STAFF
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedPartyType('Contractor');
-                                                        setIsCreatePartyFormOpen(true);
-                                                        setAttendanceActionMenuOpen(false);
-                                                    }}
-                                                    className="w-full text-left px-4 py-3 hover:bg-indigo-50 text-sm font-bold text-gray-700 flex items-center gap-3 transition-colors"
-                                                >
-                                                    <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center">
-                                                        <FiUsers size={16} />
-                                                    </div>
-                                                    ADD CONTRACTOR
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                                    <button
+                                        onClick={() => setIsSelectEmployeeOpen(true)}
+                                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-md shadow-blue-100 transition-all active:scale-95"
+                                    >
+                                        <FiUsers size={18} />
+                                        ADD STAFF
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1161,8 +1206,10 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                     {partiesList
                                         .filter(p => {
                                             const matchesFilter = activeAttendanceFilter === 'all' ||
-                                                (activeAttendanceFilter === 'site-staff' && p.party_type === 'Worker') ||
-                                                (activeAttendanceFilter === 'labour-contractor' && p.party_type === 'Contractor');
+                                                (activeAttendanceFilter === 'employee' && p.role === 'Employee') ||
+                                                (activeAttendanceFilter === 'office-member' && p.role === 'Office Member') ||
+                                                (activeAttendanceFilter === 'worker' && p.party_type === 'Worker') ||
+                                                (activeAttendanceFilter === 'contractor' && p.party_type === 'Contractor');
                                             const matchesSearch = p.party_name.toLowerCase().includes(searchQuery.toLowerCase());
                                             return matchesFilter && matchesSearch;
                                         })
@@ -1177,7 +1224,12 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                             return (
                                                 <AttendanceListItem
                                                     key={party.id}
-                                                    party={party}
+                                                    party={{
+                                                        ...party,
+                                                        applied_rate: record?.applied_rate,
+                                                        calculated_amount: record?.calculated_amount,
+                                                        shift_hours: record?.shift_hours || party.shift_hours
+                                                    }}
                                                     currentStatus={record?.status || 'Not Recorded'}
                                                     isRangeMode={isAttendanceRangeMode}
                                                     absentDates={absentDates}
@@ -1186,7 +1238,7 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                                         absent: employeeRecords.filter(r => r.status !== 'Present').length,
                                                         total: employeeRecords.length
                                                     } : null}
-                                                    onStatusChange={(partyId, status) => handleAttendanceStatusChange(partyId, status)}
+                                                    onStatusChange={(partyId, status, hours) => handleAttendanceStatusChange(partyId, status, hours)}
                                                     onUpdate={(partyId, formData) => {
                                                         setPartiesList(prev => prev.map(p =>
                                                             p.id === partyId ? { ...p, ...formData } : p
@@ -1206,12 +1258,12 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                                     <FiUsers className="text-gray-300" size={40} />
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-2 uppercase tracking-wide">No Attendance Records</h3>
-                                <p className="text-sm text-gray-500 max-w-xs mx-auto mb-8 font-medium">Use the "Manage Staff" button above to add personnel to this project and track their daily attendance.</p>
+                                <p className="text-sm text-gray-500 max-w-xs mx-auto mb-8 font-medium">No staff members have been assigned to this project yet.</p>
                                 <button
-                                    onClick={() => setAttendanceActionMenuOpen(true)}
+                                    onClick={() => setIsSelectEmployeeOpen(true)}
                                     className="text-blue-600 font-bold text-sm hover:underline"
                                 >
-                                    GET STARTED BY ADDING STAFF
+                                    ADD EXISTING STAFF
                                 </button>
                             </div>
                         )}
@@ -1221,15 +1273,96 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                 {/* Task Tab */}
                 {activeTab === 'task' && (
                     <div className="p-6 space-y-6 animate-in fade-in duration-500">
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-                            <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <FiFileText className="text-blue-500" size={40} />
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Work Pipeline</h3>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Manage Project Milestones</p>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2 uppercase tracking-wide">Tasks Pipeline</h3>
-                            <p className="text-sm text-gray-500 max-w-xs mx-auto mb-8 font-medium">Efficiently manage project milestones and daily tasks. This feature is being finalized to provide real-time tracking.</p>
-                            <button className="px-8 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all opacity-50 cursor-not-allowed">
-                                COMING SOON
+                            <button
+                                onClick={() => { setEditingTask(null); setShowTaskForm(true); }}
+                                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center gap-2 active:scale-95"
+                            >
+                                + NEW TASK
                             </button>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+                                <div className="grid grid-cols-12 gap-4">
+                                    <div className="col-span-1">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ID</span>
+                                    </div>
+                                    <div className="col-span-4">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Task Name</span>
+                                    </div>
+                                    <div className="col-span-2 text-center">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assignee</span>
+                                    </div>
+                                    <div className="col-span-2 text-center">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Priority</span>
+                                    </div>
+                                    <div className="col-span-3 text-right">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Status / Due</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="divide-y divide-gray-100">
+                                {loadingTasks ? (
+                                    <div className="p-12 text-center">
+                                        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                        <p className="text-sm text-gray-500 font-medium">Fetching tasks...</p>
+                                    </div>
+                                ) : projectTasks.length > 0 ? (
+                                    projectTasks.map((task) => (
+                                        <div key={task.id} className="px-6 py-4 hover:bg-gray-50 transition-colors group cursor-pointer" onClick={() => { setEditingTask(task); setShowTaskForm(true); }}>
+                                            <div className="grid grid-cols-12 gap-4 items-center">
+                                                <div className="col-span-1">
+                                                    <span className="text-xs font-bold text-gray-400">{task.taskNumber || `#${task.id}`}</span>
+                                                </div>
+                                                <div className="col-span-4">
+                                                    <p className="text-sm font-bold text-gray-900">{task.name}</p>
+                                                    <p className="text-[10px] font-medium text-gray-400 truncate">{task.description || 'No description'}</p>
+                                                </div>
+                                                <div className="col-span-2 text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold mb-1">
+                                                            {task.assignToName?.substring(0, 1) || '?'}
+                                                        </div>
+                                                        <span className="text-[10px] font-bold text-gray-600 uppercase tracking-tight">{task.assignToName || 'Unassigned'}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-2 text-center">
+                                                    <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${task.priority === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                        task.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                            'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                        }`}>
+                                                        {task.priority || 'NORMAL'}
+                                                    </span>
+                                                </div>
+                                                <div className="col-span-3 text-right">
+                                                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold border ${task.status === 'Completed' ? 'bg-green-100 text-green-700 border-green-200' :
+                                                        task.status === 'In Progress' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                            'bg-gray-100 text-gray-700 border-gray-200'
+                                                        }`}>
+                                                        {task.status?.toUpperCase() || 'PENDING'}
+                                                    </span>
+                                                    <p className="text-[10px] font-bold text-gray-400 mt-1">DUE: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="p-16 text-center">
+                                        <div className="w-20 h-20 bg-gray-50 rounded-2xl border border-gray-100 flex items-center justify-center mx-auto mb-6">
+                                            <FiFileText className="text-gray-300" size={40} />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2 uppercase tracking-wide">No Tasks Assigned</h3>
+                                        <p className="text-sm text-gray-500 max-w-xs mx-auto mb-8 font-medium">Break down your project into manageable tasks and track progress here.</p>
+                                        <button onClick={() => { setEditingTask(null); setShowTaskForm(true); }} className="text-blue-600 font-bold text-sm hover:underline uppercase tracking-wider">Create First Task</button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1237,15 +1370,481 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                 {/* Material Tab */}
                 {activeTab === 'material' && (
                     <div className="p-6 space-y-6 animate-in fade-in duration-500">
-                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
-                            <div className="w-20 h-20 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <FiPackage className="text-amber-500" size={40} />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Procurement</p>
+                                <p className="text-xl font-black text-gray-900">₹ {financialSummary.materialPurchase.toLocaleString()}</p>
                             </div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-2 uppercase tracking-wide">Resources & Inventory</h3>
-                            <p className="text-sm text-gray-500 max-w-xs mx-auto mb-8 font-medium">Track material procurement, consumption, and stock levels across the site.</p>
-                            <button className="px-8 py-3 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 shadow-lg shadow-amber-100 transition-all opacity-50 cursor-not-allowed">
-                                UNDER DEVELOPMENT
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Returns</p>
+                                <p className="text-xl font-black text-amber-600">₹ {financialSummary.materialReturn.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm bg-blue-50/30">
+                                <p className="text-[10px] font-bold text-blue-900 uppercase tracking-widest mb-1">Net Material Cost</p>
+                                <p className="text-xl font-black text-blue-600">₹ {(financialSummary.materialPurchase - financialSummary.materialReturn).toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        {/* Inventory Sub-Tabs */}
+                        <div className="flex items-center gap-1 p-1 bg-gray-100/80 rounded-xl w-fit">
+                            <button
+                                onClick={() => setMaterialActiveSubTab('requests')}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${materialActiveSubTab === 'requests' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Requests
                             </button>
+                            <button
+                                onClick={() => setMaterialActiveSubTab('stock')}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${materialActiveSubTab === 'stock' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Stock Summary
+                            </button>
+                            <button
+                                onClick={() => setMaterialActiveSubTab('history')}
+                                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${materialActiveSubTab === 'history' ? 'bg-white text-amber-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Movement History
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
+                                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest">
+                                    {materialActiveSubTab === 'requests' ? 'Pending Material Requests' :
+                                        materialActiveSubTab === 'stock' ? 'Current Stock Overview' : 'Material Movements'}
+                                </h3>
+                                <div className="flex gap-4">
+                                    {materialActiveSubTab === 'requests' ? (
+                                        <button onClick={() => setShowMaterialRequestForm(true)} className="text-sm font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider px-2">+ REQUEST</button>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => setShowMaterialPurchaseForm(true)} className="text-sm font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider px-2">+ MATERIAL IN</button>
+                                            <span className="text-gray-300 self-center">|</span>
+                                            <button onClick={() => setShowMaterialUsageForm(true)} className="text-sm font-bold text-rose-600 hover:text-rose-700 uppercase tracking-wider px-2">+ MATERIAL OUT</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="border-t border-gray-100 min-h-[300px]">
+                                {materialActiveSubTab === 'requests' && (
+                                    <>
+                                        {loadingRequests ? (
+                                            <div className="p-12 text-center">
+                                                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                                <p className="text-sm text-gray-500 font-medium">Fetching requests...</p>
+                                            </div>
+                                        ) : materialRequests.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                        <tr>
+                                                            <th className="px-6 py-3">Material</th>
+                                                            <th className="px-6 py-3 text-center">Qty</th>
+                                                            <th className="px-6 py-3 text-center">Date</th>
+                                                            <th className="px-6 py-3 text-center">By</th>
+                                                            <th className="px-6 py-3 text-center">Assigned To</th>
+                                                            <th className="px-6 py-3 text-center">Priority</th>
+                                                            <th className="px-6 py-3 text-right">Status</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {materialRequests.map((request) => (
+                                                            <tr key={request.id} className="hover:bg-gray-50/50 transition-colors">
+                                                                <td className="px-6 py-4">
+                                                                    <p className="font-bold text-gray-900">{request.material_name}</p>
+                                                                    <p className="text-[10px] text-gray-400 line-clamp-1">{request.description || 'No description'}</p>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center font-bold text-gray-700">
+                                                                    {request.quantity} <span className="text-[10px] text-gray-400">{request.unit}</span>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center text-xs font-medium text-gray-500">
+                                                                    {request.request_date ? new Date(request.request_date).toLocaleDateString() : 'N/A'}
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center">
+                                                                    <div className="flex flex-col items-center">
+                                                                        <div className="w-6 h-6 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold mb-0.5">
+                                                                            {request.first_name?.charAt(0) || '?'}
+                                                                        </div>
+                                                                        <span className="text-[9px] font-bold text-gray-500 uppercase">{request.first_name || 'N/A'}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center">
+                                                                    {request.assigned_to_name ? (
+                                                                        <div className="flex flex-col items-center">
+                                                                            <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold mb-0.5">
+                                                                                {request.assigned_to_name?.charAt(0) || '?'}
+                                                                            </div>
+                                                                            <span className="text-[9px] font-bold text-gray-500 uppercase">{request.assigned_to_name}</span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-[10px] text-gray-400 font-medium italic">Unassigned</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-6 py-4 text-center">
+                                                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${(request.priority || 'Medium') === 'High' || (request.priority || 'Medium') === 'Urgent' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                                        (request.priority || 'Medium') === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                                                            'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                                                        }`}>
+                                                                        {String(request.priority || 'Medium').replace(/`/g, '').toUpperCase()}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-right">
+                                                                    <div className="flex flex-col items-end gap-1">
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${(request.status || 'Pending') === 'Approved' ? 'bg-green-50 text-green-700 border-green-100' :
+                                                                            (request.status || 'Pending') === 'Arrived' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                                                                (request.status || 'Pending') === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                                                    (request.status || 'Pending') === 'Fulfilled' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                                                                        'bg-amber-50 text-amber-700 border-amber-100'
+                                                                            }`}>
+                                                                            {String(request.status || 'Pending').toUpperCase()}
+                                                                        </span>
+                                                                        {(request.status || 'Pending') === 'Pending' && (user?.id === request.assigned_to || user?.role?.toLowerCase() === 'admin') && (
+                                                                            <div className="flex gap-2">
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setConfirmPopup({
+                                                                                            isOpen: true,
+                                                                                            title: 'Approve Request',
+                                                                                            message: `Approve material request for ${request.material_name} (${request.quantity} ${request.unit})?`,
+                                                                                            onConfirm: async () => {
+                                                                                                try {
+                                                                                                    await apiService.updateMaterialRequestStatus(request.id, 'Approved');
+                                                                                                    fetchMaterialRequests();
+                                                                                                    toast.success('Request approved');
+                                                                                                } catch (error) {
+                                                                                                    console.error('Error approving request:', error);
+                                                                                                    toast.error('Failed to approve request');
+                                                                                                }
+                                                                                            }
+                                                                                        });
+                                                                                    }}
+                                                                                    className="text-[9px] font-bold text-green-600 hover:underline"
+                                                                                >
+                                                                                    APPROVE
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setConfirmPopup({
+                                                                                            isOpen: true,
+                                                                                            title: 'Reject Request',
+                                                                                            message: `Reject material request for ${request.material_name}?`,
+                                                                                            onConfirm: async () => {
+                                                                                                try {
+                                                                                                    await apiService.updateMaterialRequestStatus(request.id, 'Rejected');
+                                                                                                    fetchMaterialRequests();
+                                                                                                    toast.info('Request rejected');
+                                                                                                } catch (error) {
+                                                                                                    console.error('Error rejecting request:', error);
+                                                                                                    toast.error('Failed to reject request');
+                                                                                                }
+                                                                                            }
+                                                                                        });
+                                                                                    }}
+                                                                                    className="text-[9px] font-bold text-rose-600 hover:underline"
+                                                                                >
+                                                                                    REJECT
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                        {(request.status || 'Pending') === 'Approved' && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setConfirmPopup({
+                                                                                        isOpen: true,
+                                                                                        title: 'Mark as Arrived',
+                                                                                        message: `Mark ${request.material_name} as arrived? This will add it to stock.`,
+                                                                                        onConfirm: async () => {
+                                                                                            try {
+                                                                                                await apiService.updateMaterialRequestStatus(request.id, 'Arrived');
+                                                                                                fetchMaterialRequests();
+                                                                                                fetchInventoryData(); // Refresh stock summary
+                                                                                                toast.success('Material marked as arrived and added to stock');
+                                                                                            } catch (error) {
+                                                                                                console.error('Error marking as arrived:', error);
+                                                                                                toast.error('Failed to mark material as arrived');
+                                                                                            }
+                                                                                        }
+                                                                                    });
+                                                                                }}
+                                                                                className="text-[9px] font-bold text-indigo-600 hover:underline"
+                                                                            >
+                                                                                MARK ARRIVED
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 text-center">
+                                                <FiAlertCircle className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+                                                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No material requests found</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {materialActiveSubTab === 'stock' && (
+                                    <>
+                                        {loadingInventory ? (
+                                            <div className="p-12 text-center">
+                                                <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                                <p className="text-sm text-gray-500 font-medium">Calculating stock summary...</p>
+                                            </div>
+                                        ) : stockSummary.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                        <tr>
+                                                            <th className="px-6 py-3">Material Name</th>
+                                                            <th className="px-6 py-3 text-center">Total In</th>
+                                                            <th className="px-6 py-3 text-center">Total Out</th>
+                                                            <th className="px-6 py-3 text-center">Returned</th>
+                                                            <th className="px-6 py-3 text-right">Remaining Stock</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {stockSummary.map((stock, idx) => (
+                                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                                <td className="px-6 py-4 font-bold text-gray-900">{stock.material_name}</td>
+                                                                <td className="px-6 py-4 text-center font-medium text-green-600">{stock.total_in} <span className="text-[10px] text-gray-400">{stock.unit}</span></td>
+                                                                <td className="px-6 py-4 text-center font-medium text-rose-600">{stock.total_out} <span className="text-[10px] text-gray-400">{stock.unit}</span></td>
+                                                                <td className="px-6 py-4 text-center font-medium text-amber-600">{stock.total_return} <span className="text-[10px] text-gray-400">{stock.unit}</span></td>
+                                                                <td className="px-6 py-4 text-right">
+                                                                    <span className={`px-3 py-1 rounded-lg font-black text-sm ${stock.current_stock > 0 ? 'bg-blue-50 text-blue-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                                        {stock.current_stock} <span className="text-[10px] opacity-70 uppercase">{stock.unit}</span>
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 text-center">
+                                                <FiPackage className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+                                                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No stock data available</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {materialActiveSubTab === 'history' && (
+                                    <>
+                                        {loadingInventory ? (
+                                            <div className="p-12 text-center">
+                                                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                                <p className="text-sm text-gray-500 font-medium">Loading history...</p>
+                                            </div>
+                                        ) : inventoryHistory.length > 0 ? (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                        <tr>
+                                                            <th className="px-6 py-3">Date</th>
+                                                            <th className="px-6 py-3">Type</th>
+                                                            <th className="px-6 py-3">Material</th>
+                                                            <th className="px-6 py-3 text-center">Quantity</th>
+                                                            <th className="px-6 py-3">Reference / Description</th>
+                                                            <th className="px-6 py-3 text-right">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-gray-100">
+                                                        {inventoryHistory.map((item) => (
+                                                            <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                                                                <td className="px-6 py-4 text-xs font-bold text-gray-500">{new Date(item.transaction_date).toLocaleDateString()}</td>
+                                                                <td className="px-6 py-4 text-center">
+                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${item.type === 'In' ? 'bg-green-50 text-green-600 border border-green-100' :
+                                                                        item.type === 'Out' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                                                                            'bg-amber-50 text-amber-600 border border-amber-100'
+                                                                        }`}>
+                                                                        {item.type}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 font-bold text-gray-800">{item.material_name}</td>
+                                                                <td className="px-6 py-4 text-center font-bold">
+                                                                    {item.type === 'Out' ? '-' : '+'}{item.quantity} <span className="text-[10px] text-gray-400 font-medium">{item.unit}</span>
+                                                                </td>
+                                                                <td className="px-6 py-4 text-xs font-medium text-gray-500">
+                                                                    {item.description || 'No details'}
+                                                                </td>
+                                                                <td className="px-6 py-4 text-right">
+                                                                    {item.type === 'Out' && (
+                                                                        <button
+                                                                            onClick={() => { setSelectedIssue(item); setShowUsageReturnForm(true); }}
+                                                                            className="p-1.5 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-100 transition-colors flex items-center gap-1 mx-auto ml-auto"
+                                                                            title="Return partial quantity to stock"
+                                                                        >
+                                                                            <FiRefreshCcw className="w-3.5 h-3.5" />
+                                                                            <span className="text-[10px] font-bold uppercase">Return</span>
+                                                                        </button>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="p-16 text-center">
+                                                <FiClock className="mx-auto h-12 w-12 text-gray-200 mb-4" />
+                                                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No movement history</p>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Payroll Tab */}
+                {activeTab === 'payroll' && (
+                    <div className="p-6 space-y-6 animate-in fade-in duration-500">
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Gross</p>
+                                <p className="text-xl font-black text-gray-900">₹ {payrollSlips.reduce((acc, slip) => acc + parseFloat(slip.gross_amount), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Net</p>
+                                <p className="text-xl font-black text-blue-600">₹ {payrollSlips.reduce((acc, slip) => acc + parseFloat(slip.net_amount), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Paid Amount</p>
+                                <p className="text-xl font-black text-emerald-600">₹ {payrollSlips.reduce((acc, slip) => acc + (parseFloat(slip.net_amount) - parseFloat(slip.balance || slip.net_amount)), 0).toLocaleString()}</p>
+                            </div>
+                            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Total Balance</p>
+                                <p className="text-xl font-black text-rose-600">₹ {payrollSlips.reduce((acc, slip) => acc + parseFloat(slip.balance || 0), 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+
+                        {/* Controls */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                            <div className="flex items-center gap-4">
+                                <div className="flex flex-col">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Month</label>
+                                    <select
+                                        value={payrollMonth}
+                                        onChange={(e) => setPayrollMonth(e.target.value)}
+                                        className="p-2 border border-blue-100 bg-blue-50/30 rounded-lg text-xs font-bold text-blue-900 outline-none focus:border-blue-500"
+                                    >
+                                        {Array.from({ length: 12 }, (_, i) => (
+                                            <option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString('default', { month: 'long' })}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex flex-col">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Year</label>
+                                    <select
+                                        value={payrollYear}
+                                        onChange={(e) => setPayrollYear(e.target.value)}
+                                        className="p-2 border border-blue-100 bg-blue-50/30 rounded-lg text-xs font-bold text-blue-900 outline-none focus:border-blue-500"
+                                    >
+                                        {[2024, 2025, 2026].map(year => (
+                                            <option key={year} value={year}>{year}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <button
+                                    onClick={fetchPayrollSlips}
+                                    className="mt-5 p-2 bg-gray-50 text-gray-500 hover:bg-white hover:text-blue-600 hover:shadow-sm rounded-lg transition-all border border-gray-100"
+                                >
+                                    <FiRefreshCcw size={16} className={loadingPayroll ? 'animate-spin' : ''} />
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={handleGeneratePayroll}
+                                disabled={loadingPayroll}
+                                className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center gap-2 uppercase tracking-widest disabled:opacity-50 active:scale-95"
+                            >
+                                <FiFileText size={16} />
+                                + GENERATE PAYROLL
+                            </button>
+                        </div>
+
+                        {/* Slips Table */}
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-[400px]">
+                            {loadingPayroll ? (
+                                <div className="flex flex-col items-center justify-center h-[400px]">
+                                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Compiling Payroll Data...</p>
+                                </div>
+                            ) : payrollSlips.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-50 border-b border-gray-100">
+                                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-gray-400">Employee</th>
+                                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-gray-400 text-center">Gross</th>
+                                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-gray-400 text-center">Deductions</th>
+                                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-gray-400 text-center">Net Amount</th>
+                                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-gray-400 text-center">Status</th>
+                                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px] text-gray-400 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {payrollSlips.map((slip) => (
+                                                <tr key={slip.id} className="hover:bg-gray-50/50 transition-colors group">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-[10px] uppercase">
+                                                                {slip.employee_name?.substring(0, 2)}
+                                                            </div>
+                                                            <span className="font-bold text-gray-900">{slip.employee_name}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center font-bold text-gray-600">₹{slip.gross_amount}</td>
+                                                    <td className="px-6 py-4 text-center font-bold text-rose-500">₹{slip.deductions}</td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className="font-black text-blue-600">₹{slip.net_amount}</span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${slip.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                                                            slip.status === 'Partial' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                                                'bg-rose-50 text-rose-700 border border-rose-100'
+                                                            }`}>
+                                                            {slip.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedSlip(slip);
+                                                                setShowPaymentForm(true);
+                                                            }}
+                                                            className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black hover:bg-blue-600 hover:text-white transition-all uppercase tracking-widest shadow-sm"
+                                                        >
+                                                            RECORD PAYMENT
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-[400px] text-center p-6">
+                                    <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mb-6">
+                                        <FiFileText size={40} className="text-blue-200" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-900 mb-1 uppercase tracking-wider">Payroll Not Generated</h3>
+                                    <p className="text-sm text-gray-400 max-w-xs mb-8 font-medium">Salary slips for {new Date(2000, payrollMonth - 1).toLocaleString('default', { month: 'long' })} {payrollYear} have not been compiled yet.</p>
+                                    <button
+                                        onClick={handleGeneratePayroll}
+                                        className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:scale-105 transition-all uppercase tracking-widest text-xs"
+                                    >
+                                        GENERATE PAYROLL NOW
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -1280,15 +1879,27 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                         setIsPayrollFormOpen(false);
                         setCurrentPartyData(null);
                     }}
-                    onSubmit={(payrollData) => {
-                        const newParty = {
-                            ...currentPartyData,
-                            ...payrollData,
-                            id: Date.now()
-                        };
-                        setPartiesList(prev => [...prev, newParty]);
-                        setIsPayrollFormOpen(false);
-                        setCurrentPartyData(null);
+                    onSubmit={async (payrollData) => {
+                        try {
+                            const newParty = {
+                                ...currentPartyData,
+                                ...payrollData
+                            };
+
+                            console.log('Final submission to backend:', newParty);
+
+                            await apiService.createEmployee(newParty);
+
+                            // Refresh the employees list
+                            fetchProjectEmployees();
+
+                            toast.success('Party created successfully!');
+                            setIsPayrollFormOpen(false);
+                            setCurrentPartyData(null);
+                        } catch (error) {
+                            console.error('Error creating party:', error);
+                            toast.error(error.message || 'Failed to create party. Please try again.');
+                        }
                     }}
                     partyData={currentPartyData}
                 />
@@ -1299,6 +1910,7 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                     onClose={() => setShowPaymentInForm(false)}
                     projectName={selectedProject.project_name}
                     projectId={selectedProject.id}
+                    clientName={selectedProject.client_name}
                     onSuccess={() => {
                         fetchTransactions();
                         fetchFinancialSummary();
@@ -1311,9 +1923,11 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                     onClose={() => setShowMaterialPurchaseForm(false)}
                     projectName={selectedProject.project_name}
                     projectId={selectedProject.id}
+                    clientName={selectedProject.client_name}
                     onSuccess={() => {
                         fetchTransactions();
                         fetchFinancialSummary();
+                        fetchInventoryData();
                     }}
                 />
 
@@ -1323,22 +1937,99 @@ const ProjectInfo = ({ selectedProject, onClose }) => {
                     onClose={() => setShowMaterialReturnForm(false)}
                     projectName={selectedProject.project_name}
                     projectId={selectedProject.id}
+                    clientName={selectedProject.client_name}
                     onSuccess={() => {
                         fetchTransactions();
                         fetchFinancialSummary();
+                        fetchInventoryData();
                     }}
                 />
 
-                {/* Payment Out Form Popup */}
                 <PaymentOutFormPopup
                     isOpen={showPaymentOutForm}
                     onClose={() => setShowPaymentOutForm(false)}
                     projectName={selectedProject.project_name}
                     projectId={selectedProject.id}
+                    clientName={selectedProject.client_name}
                     onSuccess={() => {
                         fetchTransactions();
                         fetchFinancialSummary();
+                        fetchInventoryData();
                     }}
+                />
+
+                <MaterialUsageFormPopup
+                    isOpen={showMaterialUsageForm}
+                    onClose={() => setShowMaterialUsageForm(false)}
+                    projectName={selectedProject.project_name}
+                    projectId={selectedProject.id}
+                    onSuccess={() => {
+                        fetchInventoryData();
+                    }}
+                />
+
+                <MaterialUsageReturnFormPopup
+                    isOpen={showUsageReturnForm}
+                    onClose={() => { setShowUsageReturnForm(false); setSelectedIssue(null); }}
+                    issueDetails={selectedIssue}
+                    onSuccess={() => {
+                        fetchInventoryData();
+                    }}
+                />
+
+                <MaterialRequestFormPopup
+                    isOpen={showMaterialRequestForm}
+                    onClose={() => setShowMaterialRequestForm(false)}
+                    projectName={selectedProject.project_name}
+                    projectId={selectedProject.id}
+                    onSuccess={() => {
+                        fetchMaterialRequests();
+                        fetchInventoryData();
+                    }}
+                />
+
+                <TaskFormPopup
+                    isOpen={showTaskForm}
+                    onClose={() => { setShowTaskForm(false); setEditingTask(null); }}
+                    onSubmit={handleTaskSubmit}
+                    isEdit={!!editingTask}
+                    taskToEdit={editingTask}
+                    initialData={{
+                        projectName: selectedProject.project_name,
+                        relatedTo: 'Project',
+                        project_id: selectedProject.id
+                    }}
+                />
+
+                {/* Select Employee Popup */}
+                <SelectEmployeePopup
+                    isOpen={isSelectEmployeeOpen}
+                    onClose={() => setIsSelectEmployeeOpen(false)}
+                    onSelect={() => {
+                        fetchProjectEmployees();
+                        fetchAttendanceData();
+                    }}
+                    currentProjectId={selectedProject.id}
+                    currentProjectName={selectedProject.project_name}
+                />
+
+                {/* Salary Payment Popup */}
+                {showPaymentForm && selectedSlip && (
+                    <SalaryPaymentPopup
+                        isOpen={showPaymentForm}
+                        onClose={() => setShowPaymentForm(false)}
+                        slip={selectedSlip}
+                        onSubmit={handleRecordPayment}
+                    />
+                )}
+
+                {/* Central Confirmation Popup */}
+                <ConfirmationPopup
+                    isOpen={confirmPopup.isOpen}
+                    title={confirmPopup.title}
+                    message={confirmPopup.message}
+                    onConfirm={confirmPopup.onConfirm}
+                    onClose={() => setConfirmPopup(prev => ({ ...prev, isOpen: false }))}
                 />
             </div>
         </div>

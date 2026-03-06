@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FiChevronUp, FiClock, FiUsers, FiUser } from 'react-icons/fi';
 
+
 export default function AttendanceListItem({
     party,
     onStatusChange,
@@ -15,6 +16,9 @@ export default function AttendanceListItem({
 
     // Internal status is used for immediate UI feedback before refresh
     const [localStatus, setLocalStatus] = useState(currentStatus);
+    const [shiftHours, setShiftHours] = useState(party.shift_hours || 8);
+
+
 
     // Sync local status when prop changes
     React.useEffect(() => {
@@ -40,11 +44,17 @@ export default function AttendanceListItem({
     };
 
     const handleStatusChange = (newStatus) => {
+        updateStatus(newStatus);
+    };
+
+    const updateStatus = (newStatus) => {
         setLocalStatus(newStatus);
         if (onStatusChange) {
-            onStatusChange(party.id, newStatus);
+            onStatusChange(party.id, newStatus, shiftHours);
         }
     };
+
+
 
 
     return (
@@ -91,18 +101,26 @@ export default function AttendanceListItem({
                     </div>
 
                     {/* Shift & Stats */}
-                    <div className="hidden sm:flex flex-col items-end gap-1 px-4 border-l border-r border-gray-50">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Shift Hours</p>
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-                            <span className="flex items-center gap-1">
-                                <FiClock size={12} className="text-blue-500" />
-                                {party.shift_hours || 0}h
-                            </span>
-                            {party.overtime_hours > 0 && (
-                                <span className="text-green-600">+{party.overtime_hours}h OT</span>
-                            )}
+                    {!isRangeMode && (
+                        <div className="flex flex-col items-center px-3 border-l border-gray-100">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shift Hours</span>
+                            <input
+                                type="number"
+                                step="0.5"
+                                value={shiftHours}
+                                onChange={(e) => setShiftHours(e.target.value)}
+                                className="w-14 text-center text-sm font-bold border-b border-gray-200 outline-none focus:border-blue-500 bg-transparent"
+                            />
                         </div>
-                    </div>
+                    )}
+
+                    {/* Snapshot Info (if available) */}
+                    {!isRangeMode && party.applied_rate && (
+                        <div className="flex flex-col items-end px-3 border-l border-gray-100">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Snapped Rate</span>
+                            <span className="text-xs font-bold text-blue-600">₹{party.applied_rate}</span>
+                        </div>
+                    )}
 
                     {/* Status Controls / Range Stats */}
                     {isRangeMode && rangeStats ? (
@@ -119,6 +137,14 @@ export default function AttendanceListItem({
                         </div>
                     ) : (
                         <div className="flex items-center gap-2">
+                            {/* Calculated Amount (if available) */}
+                            {party.calculated_amount && (
+                                <div className="flex flex-col items-end mr-2">
+                                    <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Amount</span>
+                                    <span className="text-xs font-bold text-emerald-700">₹{party.calculated_amount}</span>
+                                </div>
+                            )}
+
                             {/* Present Button */}
                             <button
                                 onClick={() => handleStatusChange('Present')}
@@ -205,6 +231,8 @@ export default function AttendanceListItem({
                     )}
                 </div>
             </div>
+
+
         </div>
     );
 }

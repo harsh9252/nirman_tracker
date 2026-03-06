@@ -12,6 +12,8 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [materialRequests, setMaterialRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
 
   // Function to get status badge styling - same as other tables
   const getStatusBadge = (status) => {
@@ -22,6 +24,7 @@ export default function DashboardPage() {
       'On Hold': 'bg-yellow-100 text-yellow-700 border border-yellow-200',
       'Cancelled': 'bg-red-100 text-red-700 border border-red-200',
       'Open - Not Converted': 'bg-green-100 text-green-700 border border-green-200',
+      'Open': 'bg-blue-100 text-blue-700 border border-blue-200',
       'Close - Convert': 'bg-green-100 text-green-700 border border-green-200',
       'Close - Lost': 'bg-red-100 text-red-700 border border-red-200',
       'Planning': 'bg-purple-100 text-purple-700 border border-purple-200',
@@ -65,12 +68,12 @@ export default function DashboardPage() {
 
         setTasks(taskData);
 
-        // Show leads with status "Open - Not Converted" or "Working" (not converted/lost)
+        // Show leads with status "Open", "Open - Not Converted" or "Working" (not converted/lost)
         if (Array.isArray(leadData)) {
           const openLeads = leadData.filter(lead => {
             const isNotConverted = !lead.is_converted;
             const isNotLost = !lead.is_lost;
-            const hasValidStatus = lead.lead_status === 'Open - Not Converted' || lead.lead_status === 'Working';
+            const hasValidStatus = lead.lead_status === 'Open' || lead.lead_status === 'Open - Not Converted' || lead.lead_status === 'Working';
 
             console.log(`Lead ${lead.id} (${lead.contact_name}):`, {
               lead_status: lead.lead_status,
@@ -98,7 +101,30 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
+    fetchMyMaterialRequests();
   }, [user?.id, user?.role]);
+
+  const fetchMyMaterialRequests = async () => {
+    if (!user?.id) return;
+    setLoadingRequests(true);
+    try {
+      const data = await apiService.getMyMaterialRequests();
+      setMaterialRequests(data || []);
+    } catch (error) {
+      console.error('Error fetching material requests:', error);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleStatusUpdate = async (id, status) => {
+    try {
+      await apiService.updateMaterialRequestStatus(id, status);
+      fetchMyMaterialRequests();
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
@@ -279,12 +305,91 @@ export default function DashboardPage() {
 
           {/* ===== नीचे वाले grids भी SAME SIZE के साथ HIDDEN ===== */}
 
-          {/*
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
-            Material Request
-            Recent Transaction
+            {/* ================= MATERIAL REQUESTS ================= */}
+            <div className="bg-white rounded-xl border border-gray-400 p-2 sm:p-3 shadow-sm hover:shadow-lg transition-shadow duration-300 h-96 flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                <h2 className="text-lg font-semibold text-gray-800">Material Requests</h2>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <div className="overflow-y-auto max-h-80">
+                  {loadingRequests ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      <span className="ml-2 text-sm text-gray-500">Loading requests...</span>
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs sm:text-[13px] table-fixed">
+                      <thead className="bg-white sticky top-0">
+                        <tr className="border-b">
+                          <th className="py-1.5 px-0.5 font-medium text-gray-700 w-1/4 text-center text-xs">Project</th>
+                          <th className="py-1.5 px-0.5 font-medium text-gray-700 w-1/4 text-center text-xs">Material</th>
+                          <th className="py-1.5 px-0.5 font-medium text-gray-700 w-1/4 text-center text-xs">Qty</th>
+                          <th className="py-1.5 px-0.5 font-medium text-gray-700 w-1/4 text-center text-xs">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-700">
+                        {materialRequests.length > 0 ? materialRequests.map((request, index) => (
+                          <tr key={request.id} className={index < materialRequests.length - 1 ? "border-b border-gray-100" : ""}>
+                            <td className="py-2 px-0.5 text-center break-words text-[11px] font-medium" title={request.project_name}>
+                              {request.project_name || 'N/A'}
+                            </td>
+                            <td className="py-2 px-0.5 text-center break-words text-[11px]">
+                              {request.material_name}
+                            </td>
+                            <td className="py-2 px-0.5 text-center text-[11px]">
+                              {request.quantity} <span className="text-[9px] text-gray-400">{request.unit}</span>
+                            </td>
+                            <td className="py-2 px-0.5 text-center">
+                              {request.status === 'Pending' && (user?.id === request.assigned_to || user?.role?.toLowerCase() === 'admin') ? (
+                                <div className="flex flex-col gap-1 items-center">
+                                  <button
+                                    onClick={() => handleStatusUpdate(request.id, 'Approved')}
+                                    className="w-full py-0.5 bg-green-50 text-green-600 border border-green-100 rounded text-[9px] font-bold hover:bg-green-100"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleStatusUpdate(request.id, 'Rejected')}
+                                    className="w-full py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded text-[9px] font-bold hover:bg-rose-100"
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className={`px-1 rounded text-[9px] font-bold uppercase ${request.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                                  request.status === 'Rejected' ? 'bg-rose-100 text-rose-700' :
+                                    'bg-gray-100 text-gray-700'
+                                  }`}>
+                                  {String(request.status || 'Pending').toUpperCase()}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr>
+                            <td colSpan="4" className="py-12 text-center text-gray-400 italic text-xs">
+                              No pending material requests
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ================= RECENT TRANSACTIONS (PLACEHOLDER) ================= */}
+            <div className="bg-white rounded-xl border border-gray-400 p-2 sm:p-3 shadow-sm hover:shadow-lg transition-shadow duration-300 h-96 flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                <h2 className="text-lg font-semibold text-gray-800">Recent Transactions</h2>
+              </div>
+              <div className="flex-1 flex items-center justify-center text-gray-400 text-xs italic">
+                Transaction history will appear here
+              </div>
+            </div>
           </div>
-          */}
 
         </main>
       </div>

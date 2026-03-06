@@ -27,8 +27,15 @@ class ApiService {
     const url = `${this.getBaseUrl()}${endpoint}`;
     console.log('API Request URL:', url); // Debug logging
 
+    const isFormData = options.body instanceof FormData;
+    const authHeaders = this.getAuthHeaders();
+
+    if (isFormData) {
+      delete authHeaders['Content-Type'];
+    }
+
     const defaultOptions = {
-      headers: this.getAuthHeaders(),
+      headers: authHeaders,
       ...options
     };
 
@@ -139,6 +146,10 @@ class ApiService {
 
   async getTaskById(id) {
     return this.request(`/api/tasks/${id}`);
+  }
+
+  async getTasksByLead(leadId) {
+    return this.request(`/api/tasks/lead/${leadId}`);
   }
 
   async createTask(taskData) {
@@ -361,16 +372,24 @@ class ApiService {
   }
 
   async createTransaction(transactionData) {
+    const body = transactionData instanceof FormData
+      ? transactionData
+      : JSON.stringify(transactionData);
+
     return this.request('/api/transactions', {
       method: 'POST',
-      body: JSON.stringify(transactionData)
+      body
     });
   }
 
   async updateTransaction(id, transactionData) {
+    const body = transactionData instanceof FormData
+      ? transactionData
+      : JSON.stringify(transactionData);
+
     return this.request(`/api/transactions/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(transactionData)
+      body
     });
   }
 
@@ -436,6 +455,109 @@ class ApiService {
   // Health check
   async healthCheck() {
     return this.request('/api/health');
+  }
+
+  // Material Request endpoints
+  async createMaterialRequest(data) {
+    return this.request('/api/material-requests', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getMaterialRequestsByProject(projectId) {
+    return this.request(`/api/material-requests/project/${projectId}`);
+  }
+
+  async getMyMaterialRequests() {
+    return this.request('/api/material-requests/my-requests');
+  }
+
+  async updateMaterialRequestStatus(id, status) {
+    return this.request(`/api/material-requests/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  }
+
+  async deleteMaterialRequest(id) {
+    return this.request(`/api/material-requests/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Inventory endpoints
+  async createInventoryEntry(data) {
+    return this.request('/api/inventory', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getProjectInventory(projectId) {
+    return this.request(`/api/inventory/project/${projectId}`);
+  }
+
+  async getStockSummary(projectId) {
+    return this.request(`/api/inventory/project/${projectId}/summary`);
+  }
+
+  async createUsageReturn(data) {
+    return this.request('/api/inventory/usage-return', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // --- Salary & Payroll Endpoints ---
+
+  async getSalaryTypes() {
+    return this.request('/api/employees/salary-types');
+  }
+
+  // Project Rates
+  async upsertProjectRate(rateData) {
+    return this.request('/api/project-rates', {
+      method: 'POST',
+      body: JSON.stringify(rateData)
+    });
+  }
+
+  async getProjectRatesByEmployee(employeeId) {
+    return this.request(`/api/project-rates/employee/${employeeId}`);
+  }
+
+  async deleteProjectRate(id) {
+    return this.request(`/api/project-rates/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Payroll
+  async generateSalarySlip(slipData) {
+    return this.request('/api/payroll/generate-slip', {
+      method: 'POST',
+      body: JSON.stringify(slipData)
+    });
+  }
+
+  async getSalarySlipsByEmployee(employeeId) {
+    return this.request(`/api/payroll/slips/employee/${employeeId}`);
+  }
+
+  async getSalarySlipsByProject(projectId, month, year) {
+    return this.request(`/api/payroll/slips/project/${projectId}?month=${month}&year=${year}`);
+  }
+
+  async recordSalaryPayment(paymentData) {
+    return this.request('/api/payroll/record-payment', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
+
+  async getSalaryPaymentsBySlip(slipId) {
+    return this.request(`/api/payroll/payments/slip/${slipId}`);
   }
 }
 

@@ -5,7 +5,10 @@ import { io } from 'socket.io-client';
 import apiService from '../services/api';
 import config from '../config/config';
 import { formatDateForDisplay, parseDisplayDate } from '../utils/dateUtils';
-import { FiFileText, FiMessageSquare, FiEdit2, FiCheck, FiX, FiCalendar, FiSend } from 'react-icons/fi';
+import { calculateDistance } from '../utils/locationUtils';
+import { toast } from 'react-toastify';
+import { FiFileText, FiMessageSquare, FiEdit2, FiCheck, FiX, FiCalendar, FiSend, FiMapPin } from 'react-icons/fi';
+import CheckInActionPopup from './CheckInActionPopup';
 
 
 
@@ -395,6 +398,130 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
   const [leads, setLeads] = useState([]);
   const [relatedTo, setRelatedTo] = useState("");
 
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  // Check-In Popup State
+  const [showCheckInPopup, setShowCheckInPopup] = useState(false);
+  const [checkInDistance, setCheckInDistance] = useState(null);
+
+  // Check-In Functionality
+  const handleCheckIn = () => {
+    if (!selectedTask.latitude || !selectedTask.longitude) {
+      toast.error("Task location is not set. Cannot check in.");
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setCheckingIn(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const userLat = position.coords.latitude;
+        const userLon = position.coords.longitude;
+        const taskLat = parseFloat(selectedTask.latitude);
+        const taskLon = parseFloat(selectedTask.longitude);
+
+        const distance = calculateDistance(userLat, userLon, taskLat, taskLon);
+
+        // Threshold in meters (e.g., 200m)
+        const THRESHOLD_METERS = 200;
+
+        if (distance <= THRESHOLD_METERS) {
+          setCheckInDistance(Math.round(distance));
+          setShowCheckInPopup(true);
+        } else {
+          toast.error(`You are too far from the task location. (Distance: ${Math.round(distance)}m)`);
+        }
+        setCheckingIn(false);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        toast.error("Unable to retrieve your location. Please allow location access.");
+        setCheckingIn(false);
+      }
+    );
+  };
+
+  const handleCheckInAction = async ({ action, date }) => {
+    if (action === 'start') {
+      // Start Work: Just update status to Working
+      try {
+        const updatedTask = {
+          ...selectedTask,
+          status: "Working"
+        };
+        const result = await apiService.updateTask(selectedTask.id, updatedTask);
+
+        if (result && onTaskUpdate) {
+          onTaskUpdate(result);
+        }
+        toast.success(`Check-in successful! Status updated to Working. (Distance: ${checkInDistance}m)`);
+      } catch (error) {
+        console.error("Error updating task status:", error);
+        toast.error("Failed to update task status.");
+      }
+    } else if (action === 'reschedule') {
+      // Reschedule: Create NEW task + Complete OLD task
+      try {
+        // 0. Get Next Task Number
+        const { taskNumber } = await apiService.getNextTaskNumber();
+
+        // 1. Create New Task
+        const newTaskData = {
+          taskNumber: taskNumber, // Include the fetched task number
+          name: selectedTask.name, // Same name
+          description: selectedTask.description, // Same description
+          status: "New", // Reset status
+          priority: selectedTask.priority,
+          assignTo: selectedTask.assignTo, // Same assignee
+          assignBy: user.id,
+          projectName: selectedTask.projectName,
+          leadName: selectedTask.leadName,
+          relatedTo: selectedTask.relatedTo,
+          dueDate: date, // NEW DATE
+          createdDate: new Date().toISOString().split('T')[0], // CURRENT DATE
+          project_id: selectedTask.project_id || null,
+          lead_id: selectedTask.lead_id || null,
+          latitude: selectedTask.latitude, // Same Location
+          longitude: selectedTask.longitude
+        };
+
+        const newTask = await apiService.createTask(newTaskData);
+
+        // 2. Complete Old Task & Add Comment
+        const completedTask = {
+          ...selectedTask,
+          status: "Completed"
+        };
+
+        await apiService.updateTask(selectedTask.id, completedTask);
+
+        // Add system comment
+        await apiService.createComment({
+          task_id: selectedTask.id,
+          message: `Check-in recorded. User rescheduled follow-up task to ${formatDate(date)}. New Task ID: #${newTask.taskNumber || 'Created'}`,
+        });
+
+        toast.success(`Follow-up task created for ${formatDate(date)} and current task marked Completed.`);
+
+        // Close popup and refresh parent
+        if (onTaskUpdate) {
+          // Pass the OLD task (now completed) to update UI, 
+          // OR we could trigger a full refresh if the parent list needs to show the new task.
+          // For now, updating the current item view is key.
+          onTaskUpdate(completedTask);
+        }
+
+      } catch (error) {
+        console.error("Error creating follow-up task:", error);
+        toast.error("Failed to create follow-up task.");
+      }
+    }
+  };
+
   // PERFECT SCROLL REFS
   const chatContainerRef = useRef(null);
   const isUserScrollingRef = useRef(false);
@@ -782,7 +909,9 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
       leadName: selectedTask.leadName || "",
       relatedTo: selectedTask.relatedTo || relatedTo,
       dueDate: formatDateForInput(selectedTask.dueDate),
-      createdDate: formatDateForInput(selectedTask.createdDate)
+      createdDate: formatDateForInput(selectedTask.createdDate),
+      latitude: selectedTask.latitude || "",
+      longitude: selectedTask.longitude || ""
     });
     setIsEditingTask(true);
   };
@@ -807,7 +936,9 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
         leadName: editedTaskData.leadName || "",
         relatedTo: editedTaskData.relatedTo || "",
         dueDate: editedTaskData.dueDate,
-        createdDate: editedTaskData.createdDate
+        createdDate: editedTaskData.createdDate,
+        latitude: editedTaskData.latitude,
+        longitude: editedTaskData.longitude
       };
 
       const result = await apiService.updateTask(selectedTask.id, updatedTask);
@@ -868,8 +999,8 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-1 text-xs sm:text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                    ? "text-white bg-primary"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "text-white bg-primary"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 <Icon size={14} className="sm:w-4 sm:h-4" />
@@ -892,14 +1023,30 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
         </div>
         {activeTab === "overview" && (
           !isEditingTask ? (
-            <button
-              onClick={startEditingTask}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-              style={{ fontFamily: 'var(--font-family)' }}
-            >
-              <FiEdit2 size={16} />
-              <span>Edit</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCheckIn}
+                disabled={selectedTask.status === "Working" || checkingIn}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                style={{ fontFamily: 'var(--font-family)' }}
+              >
+                {checkingIn ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <FiMapPin size={16} />
+                )}
+                <span>Check In</span>
+              </button>
+              <button
+                onClick={startEditingTask}
+                disabled={selectedTask.status !== "Working"}
+                className={`flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium ${selectedTask.status !== "Working" ? "opacity-50 cursor-not-allowed" : ""}`}
+                style={{ fontFamily: 'var(--font-family)' }}
+              >
+                <FiEdit2 size={16} />
+                <span>Edit</span>
+              </button>
+            </div>
           ) : (
             <div className="flex gap-2">
               <button
@@ -951,11 +1098,27 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
           {activeTab === "overview" && !isEditingTask && (
             <button
               onClick={startEditingTask}
-              className="flex items-center gap-1 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors text-sm ml-4"
+              disabled={selectedTask.status !== "Working"}
+              className={`flex items-center gap-1 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-blue-600 transition-colors text-sm ml-4 ${selectedTask.status !== "Working" ? "opacity-50 cursor-not-allowed" : ""}`}
               style={{ fontFamily: 'var(--font-family)' }}
             >
               <FiEdit2 size={14} />
               <span>Edit</span>
+            </button>
+          )}
+          {activeTab === "overview" && !isEditingTask && (
+            <button
+              onClick={handleCheckIn}
+              disabled={selectedTask.status === "Working" || checkingIn}
+              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm ml-2"
+              style={{ fontFamily: 'var(--font-family)' }}
+            >
+              {checkingIn ? (
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+              ) : (
+                <FiMapPin size={14} />
+              )}
+              <span>Check In</span>
             </button>
           )}
           {activeTab === "overview" && isEditingTask && (
@@ -1245,6 +1408,49 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
                         </div>
                         <div className="text-sm font-medium text-gray-900 break-words">
                           {formatDate(selectedTask.dueDate)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Latitude and Longitude - 2 Column Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    {isEditingTask ? (
+                      <InputField
+                        label="LATITUDE"
+                        value={editedTaskData.latitude}
+                        onChange={(e) => setEditedTaskData(prev => ({ ...prev, latitude: e.target.value }))}
+                        placeholder="Enter latitude"
+                      />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">
+                          Latitude
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 break-words">
+                          {selectedTask.latitude || "N/A"}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    {isEditingTask ? (
+                      <InputField
+                        label="LONGITUDE"
+                        value={editedTaskData.longitude}
+                        onChange={(e) => setEditedTaskData(prev => ({ ...prev, longitude: e.target.value }))}
+                        placeholder="Enter longitude"
+                      />
+                    ) : (
+                      <div className="p-3 bg-gray-50 rounded-lg">
+                        <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">
+                          Longitude
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 break-words">
+                          {selectedTask.longitude || "N/A"}
                         </div>
                       </div>
                     )}
@@ -1542,6 +1748,49 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
                   </div>
                 </div>
 
+                {/* Row 6: Latitude + Longitude */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="bg-light-gray-bg rounded-lg p-4 border border-gray-200">
+                    {isEditingTask ? (
+                      <InputField
+                        label="LATITUDE"
+                        value={editedTaskData.latitude}
+                        onChange={(e) => setEditedTaskData(prev => ({ ...prev, latitude: e.target.value }))}
+                        placeholder="Enter latitude"
+                      />
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">
+                          Latitude
+                        </span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedTask.latitude || "N/A"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-light-gray-bg rounded-lg p-4 border border-gray-200">
+                    {isEditingTask ? (
+                      <InputField
+                        label="LONGITUDE"
+                        value={editedTaskData.longitude}
+                        onChange={(e) => setEditedTaskData(prev => ({ ...prev, longitude: e.target.value }))}
+                        placeholder="Enter longitude"
+                      />
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">
+                          Longitude
+                        </span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {selectedTask.longitude || "N/A"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Row 7: Description (full width at bottom) */}
                 <div className="bg-light-gray-bg rounded-lg p-4 border border-gray-200">
                   {isEditingTask ? (
@@ -1563,162 +1812,172 @@ const TaskInfo = ({ selectedTask, onClose, onTaskUpdate }) => {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
+            </div >
+          </div >
         )}
 
-        {activeTab === "comments" && (
-          <div className="flex flex-col h-full min-h-0 relative">
-            {/* Chat Messages - PERFECT SCROLL CONTAINER */}
-            <div
-              ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 bg-gray-50"
-              style={{
-                scrollBehavior: "smooth",
-                paddingBottom: "4rem",
-              }}
-            >
-              {loadingComments ? (
-                <div className="flex justify-center items-center py-6 sm:py-8">
-                  <div className="text-sm text-gray-500">Loading comments...</div>
-                </div>
-              ) : comments.length === 0 ? (
-                <div className="flex justify-center items-center py-6 sm:py-8">
-                  <div className="text-sm text-gray-500 text-center px-4">
-                    No comments yet. Start the conversation!
+        {
+          activeTab === "comments" && (
+            <div className="flex flex-col h-full min-h-0 relative">
+              {/* Chat Messages - PERFECT SCROLL CONTAINER */}
+              <div
+                ref={chatContainerRef}
+                className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 bg-gray-50"
+                style={{
+                  scrollBehavior: "smooth",
+                  paddingBottom: "4rem",
+                }}
+              >
+                {loadingComments ? (
+                  <div className="flex justify-center items-center py-6 sm:py-8">
+                    <div className="text-sm text-gray-500">Loading comments...</div>
                   </div>
-                </div>
-              ) : (
-                comments.map((comment) => (
-                  <div key={comment.id} className="space-y-2">
-                    {/* Main Comment */}
-                    <div className="flex gap-2 sm:gap-3">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium flex-shrink-0">
-                        {comment.userName.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="bg-white rounded-lg p-2 sm:p-3 shadow-sm">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
-                              {comment.userName}
-                            </span>
-                            <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                              {formatTime(comment.created_at)}
-                            </span>
-                          </div>
-                          <p className="text-xs sm:text-sm text-gray-700 break-words">
-                            {comment.message}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => setReplyingTo(comment.id)}
-                          className="text-xs text-primary hover:text-blue-600 mt-1 ml-2 sm:ml-3"
-                        >
-                          Reply
-                        </button>
-                      </div>
+                ) : comments.length === 0 ? (
+                  <div className="flex justify-center items-center py-6 sm:py-8">
+                    <div className="text-sm text-gray-500 text-center px-4">
+                      No comments yet. Start the conversation!
                     </div>
-
-                    {/* Replies */}
-                    {comment.replies &&
-                      comment.replies.map((reply) => (
-                        <div key={reply.id} className="flex gap-2 sm:gap-3 ml-8 sm:ml-11">
-                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                            {reply.userName.charAt(0).toUpperCase()}
+                  </div>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="space-y-2">
+                      {/* Main Comment */}
+                      <div className="flex gap-2 sm:gap-3">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium flex-shrink-0">
+                          {comment.userName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="bg-white rounded-lg p-2 sm:p-3 shadow-sm">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs sm:text-sm font-medium text-gray-900 truncate">
+                                {comment.userName}
+                              </span>
+                              <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                                {formatTime(comment.created_at)}
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-gray-700 break-words">
+                              {comment.message}
+                            </p>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="bg-gray-100 rounded-lg p-2 shadow-sm">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium text-gray-900 truncate">
-                                  {reply.userName}
-                                </span>
-                                <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                                  {formatTime(reply.created_at)}
-                                </span>
+                          <button
+                            onClick={() => setReplyingTo(comment.id)}
+                            className="text-xs text-primary hover:text-blue-600 mt-1 ml-2 sm:ml-3"
+                          >
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Replies */}
+                      {comment.replies &&
+                        comment.replies.map((reply) => (
+                          <div key={reply.id} className="flex gap-2 sm:gap-3 ml-8 sm:ml-11">
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gray-400 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
+                              {reply.userName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="bg-gray-100 rounded-lg p-2 shadow-sm">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-xs font-medium text-gray-900 truncate">
+                                    {reply.userName}
+                                  </span>
+                                  <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                                    {formatTime(reply.created_at)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-700 break-words">
+                                  {reply.message}
+                                </p>
                               </div>
-                              <p className="text-xs text-gray-700 break-words">
-                                {reply.message}
-                              </p>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                  </div>
-                ))
-              )}
+                        ))}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )
+        }
+      </div >
 
       {/* Chat Input - Fixed at bottom when comments tab is active */}
-      {activeTab === "comments" && (
-        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white">
-          {/* Reply Indicator */}
-          {replyingTo && (
-            <div className="px-3 sm:px-4 py-2 text-xs text-gray-600 bg-blue-50 border-b border-gray-200 flex items-center justify-between">
-              <span>
-                Replying to{' '}
-                <span className="font-medium">
-                  {comments.find(c => c.id === replyingTo)?.userName || 'Unknown User'}
+      {
+        activeTab === "comments" && (
+          <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white">
+            {/* Reply Indicator */}
+            {replyingTo && (
+              <div className="px-3 sm:px-4 py-2 text-xs text-gray-600 bg-blue-50 border-b border-gray-200 flex items-center justify-between">
+                <span>
+                  Replying to{' '}
+                  <span className="font-medium">
+                    {comments.find(c => c.id === replyingTo)?.userName || 'Unknown User'}
+                  </span>
                 </span>
-              </span>
-              <button
-                onClick={() => setReplyingTo(null)}
-                className="text-gray-400 hover:text-gray-600 ml-2"
-                title="Cancel reply"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          )}
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="text-gray-400 hover:text-gray-600 ml-2"
+                  title="Cancel reply"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
-          {/* Typing Indicators */}
-          {typingUsers.size > 0 && (
-            <div className="px-3 sm:px-4 py-2 text-xs text-gray-500 bg-gray-50 border-b border-gray-200">
-              {Array.from(typingUsers.values()).map((user, index) => (
-                <span key={index} className="inline-flex items-center">
-                  <span className="font-medium">{user.userName}</span>
-                  <span className="ml-1">is typing</span>
-                  {index < typingUsers.size - 1 && <span className="mx-1">,</span>}
-                </span>
-              ))}
-              <span className="ml-1 animate-pulse">...</span>
-            </div>
-          )}
+            {/* Typing Indicators */}
+            {typingUsers.size > 0 && (
+              <div className="px-3 sm:px-4 py-2 text-xs text-gray-500 bg-gray-50 border-b border-gray-200">
+                {Array.from(typingUsers.values()).map((user, index) => (
+                  <span key={index} className="inline-flex items-center">
+                    <span className="font-medium">{user.userName}</span>
+                    <span className="ml-1">is typing</span>
+                    {index < typingUsers.size - 1 && <span className="mx-1">,</span>}
+                  </span>
+                ))}
+                <span className="ml-1 animate-pulse">...</span>
+              </div>
+            )}
 
-          {/* Input Area */}
-          <div className="p-3 sm:p-4">
-            <div className="flex">
-              <textarea
-                value={newComment}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendComment();
-                  }
-                }}
-                placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
-                rows={1}
-                className="flex-1 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                style={{ minHeight: '40px', maxHeight: '120px' }}
-              />
-              <button
-                onClick={handleSendComment}
-                disabled={!newComment.trim() || postingComment}
-                className="px-3 sm:px-4 py-2 sm:py-3 bg-primary text-white rounded-r-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                style={{ minHeight: '40px' }}
-              >
-                <FiSend size={14} className="sm:w-4 sm:h-4" />
-              </button>
+            {/* Input Area */}
+            <div className="p-3 sm:p-4">
+              <div className="flex">
+                <textarea
+                  value={newComment}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendComment();
+                    }
+                  }}
+                  placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
+                  rows={1}
+                  className="flex-1 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                  style={{ minHeight: '40px', maxHeight: '120px' }}
+                />
+                <button
+                  onClick={handleSendComment}
+                  disabled={!newComment.trim() || postingComment}
+                  className="px-3 sm:px-4 py-2 sm:py-3 bg-primary text-white rounded-r-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  style={{ minHeight: '40px' }}
+                >
+                  <FiSend size={14} className="sm:w-4 sm:h-4" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+      {/* Check In Action Popup */}
+      <CheckInActionPopup
+        isOpen={showCheckInPopup}
+        onClose={() => setShowCheckInPopup(false)}
+        onConfirm={handleCheckInAction}
+      />
+    </div >
   );
 };
 

@@ -1,183 +1,349 @@
-# Nirman Tracker API Endpoints
+openapi: 3.0.3
+info:
+  title: Nirman Tracker API
+  description: Backend API for Nirman Tracker application
+  version: 1.0.0
 
-This document provides a comprehensive list of all API endpoints available in the Nirman Tracker backend.
+servers:
+  - url: http://localhost:5000/api
+    description: Local server
 
-## Base URL
-The API is accessible at `http://<host>:<port>/api` (Default: `http://localhost:5000/api`)
+security:
+  - bearerAuth: []
 
----
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 
-## 1. Authentication (`/api/auth`)
+paths:
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| POST | `/register` | Register a new user | No |
-| POST | `/login` | Log in with credentials | No |
-| POST | `/forgot-password` | Request password reset | No |
-| POST | `/reset-password` | Reset password using token | No |
-| POST | `/appuser-login` | Login for app users (identifier + plain text password) | No |
-| POST | `/change-password` | Change user password | No |
-| GET | `/profile` | Get current user's profile | Yes (JWT) |
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      responses:
+        '201': { description: User registered }
 
----
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      security: []
+      responses:
+        '200': { description: Login successful }
 
-## 2. Leads (`/api/leads`)
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      security: []
+      responses:
+        '200': { description: Reset email sent }
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| GET | `/` | Get all leads |
-| GET | `/:id` | Get lead by ID |
-| POST | `/` | Create a new lead |
-| PUT | `/:id` | Update an existing lead |
-| DELETE | `/:id` | Delete a lead |
-| POST | `/:id/convert` | Convert lead to client |
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using token
+      security: []
+      responses:
+        '200': { description: Password reset }
 
----
+  /auth/appuser-login:
+    post:
+      tags: [Auth]
+      summary: App user login
+      security: []
+      responses:
+        '200': { description: Login successful }
 
-## 3. Clients (`/api/clients`)
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change password
+      responses:
+        '200': { description: Password changed }
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/` | Get all clients | Yes |
-| POST | `/` | Create a new client | Yes |
-| GET | `/:id` | Get client by ID | Yes |
-| PUT | `/:id` | Update client details | Yes |
-| DELETE | `/:id` | Delete a client | Yes |
+  /auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      responses:
+        '200': { description: User profile }
 
----
+  /leads:
+    get:
+      tags: [Leads]
+      summary: Get all leads
+    post:
+      tags: [Leads]
+      summary: Create a new lead
 
-## 4. Users (`/api/users`)
+  /leads/{id}:
+    get:
+      tags: [Leads]
+      summary: Get lead by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+    put:
+      tags: [Leads]
+      summary: Update lead
+    delete:
+      tags: [Leads]
+      summary: Delete lead
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/` | Get all users | Yes |
-| GET | `/:id` | Get user by ID | Yes |
-| GET | `/:id/check-deletion`| Check if user can be deleted | Yes |
-| POST | `/` | Create a new user | Yes |
-| PUT | `/:id` | Update user details | Yes |
-| DELETE | `/:id` | Delete a user | Yes |
+  /leads/{id}/convert:
+    post:
+      tags: [Leads]
+      summary: Convert lead to client
 
----
+  /clients:
+    get:
+      tags: [Clients]
+      summary: Get all clients
+    post:
+      tags: [Clients]
+      summary: Create client
 
-## 5. Tasks (`/api/tasks`)
+  /clients/{id}:
+    get:
+      tags: [Clients]
+      summary: Get client by ID
+    put:
+      tags: [Clients]
+      summary: Update client
+    delete:
+      tags: [Clients]
+      summary: Delete client
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/` | Get all tasks | Yes |
-| GET | `/next-number` | Get next task number | Yes |
-| GET | `/:id` | Get task by ID | Yes |
-| POST | `/` | Create a new task | Yes |
-| PUT | `/:id` | Update task status/details | Yes |
-| DELETE | `/:id` | Delete a task | Yes |
+  /users:
+    get:
+      tags: [Users]
+      summary: Get all users
+    post:
+      tags: [Users]
+      summary: Create user
 
----
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+    put:
+      tags: [Users]
+      summary: Update user
+    delete:
+      tags: [Users]
+      summary: Delete user
 
-## 6. Comments (`/api/comments`)
+  /users/{id}/check-deletion:
+    get:
+      tags: [Users]
+      summary: Check if user can be deleted
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/task/:taskId` | Get comments for a task | Yes |
-| POST | `/` | Post a new comment | Yes |
-| PUT | `/:id` | Edit a comment | Yes |
-| DELETE | `/:id` | Delete a comment | Yes |
-| GET | `/:commentId/replies` | Get replies to a comment | Yes |
+  /projects:
+    get:
+      tags: [Projects]
+      summary: Get all projects
+    post:
+      tags: [Projects]
+      summary: Create project
 
----
+  /projects/stats:
+    get:
+      tags: [Projects]
+      summary: Get project statistics
 
-## 7. Notifications (`/api/notifications`)
+  /projects/{id}:
+    get:
+      tags: [Projects]
+      summary: Get project by ID
+    put:
+      tags: [Projects]
+      summary: Update project
+    delete:
+      tags: [Projects]
+      summary: Delete project
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/` | Get user notifications | Yes |
-| GET | `/unread-count` | Get unread count | Yes |
-| PUT | `/:id/read` | Mark as read | Yes |
-| PUT | `/mark-all-read` | Mark all as read | Yes |
-| DELETE | `/:id` | Delete notification | Yes |
-| POST | `/` | Create notification (Admin) | Yes |
+  /projects/client/{clientId}:
+    get:
+      tags: [Projects]
+      summary: Get projects by client
 
----
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: Get all tasks
+    post:
+      tags: [Tasks]
+      summary: Create task
 
-## 8. Projects (`/api/projects`)
+  /tasks/next-number:
+    get:
+      tags: [Tasks]
+      summary: Get next task number
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| GET | `/` | Get all projects |
-| GET | `/stats` | Get project statistics |
-| GET | `/:id` | Get project by ID |
-| GET | `/client/:clientId` | Get projects by client |
-| POST | `/` | Create a new project |
-| PUT | `/:id` | Update project details |
-| DELETE | `/:id` | Delete a project |
+  /tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: Get task by ID
+    put:
+      tags: [Tasks]
+      summary: Update task
+    delete:
+      tags: [Tasks]
+      summary: Delete task
 
----
+  /comments/task/{taskId}:
+    get:
+      tags: [Comments]
+      summary: Get comments for task
 
-## 9. Transactions (`/api/transactions`)
+  /comments:
+    post:
+      tags: [Comments]
+      summary: Post comment
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| POST | `/` | Create a transaction | Yes |
-| GET | `/project/:projectId` | Get project transactions | Yes |
-| GET | `/project/:projectId/summary` | Get financial summary | Yes |
-| PUT | `/:id` | Update transaction | Yes |
-| DELETE | `/:id` | Delete transaction | Yes |
+  /comments/{id}:
+    put:
+      tags: [Comments]
+      summary: Edit comment
+    delete:
+      tags: [Comments]
+      summary: Delete comment
 
----
+  /comments/{commentId}/replies:
+    get:
+      tags: [Comments]
+      summary: Get comment replies
 
-## 10. Employees (`/api/employees`)
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Get notifications
+    post:
+      tags: [Notifications]
+      summary: Create notification
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/` | Get all employees | Yes |
-| GET | `/:id` | Get employee by ID | Yes |
-| POST | `/` | Create an employee | Yes |
-| PUT | `/:id` | Update employee info | Yes |
-| GET | `/project/:projectId` | Get employees by project | Yes |
-| DELETE | `/:id` | Delete an employee | Yes |
+  /notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get unread count
 
----
+  /notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark notification as read
 
-## 11. Attendance (`/api/attendance`)
+  /notifications/mark-all-read:
+    put:
+      tags: [Notifications]
+      summary: Mark all notifications as read
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| POST | `/record` | Record attendance (Single/Bulk) |
-| GET | `/project/:projectId/date/:date` | Get attendance by date |
-| GET | `/project/:projectId/range` | Get attendance by range |
-| GET | `/project/:projectId/summary` | Get attendance summary |
+  /transactions:
+    post:
+      tags: [Transactions]
+      summary: Create transaction
 
----
+  /transactions/{id}:
+    put:
+      tags: [Transactions]
+      summary: Update transaction
+    delete:
+      tags: [Transactions]
+      summary: Delete transaction
 
-## 12. Push Notifications (`/api/push`)
+  /transactions/project/{projectId}:
+    get:
+      tags: [Transactions]
+      summary: Get project transactions
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| GET | `/vapid-public-key` | Get service VAPID key | No |
-| POST | `/subscribe` | Subscribe current user | Yes |
-| POST | `/unsubscribe` | Unsubscribe current user | Yes |
-| GET | `/subscription-status`| Get subscription status | Yes |
-| POST | `/test-notification`| Send test push | Yes |
+  /transactions/project/{projectId}/summary:
+    get:
+      tags: [Transactions]
+      summary: Get financial summary
 
----
+  /employees:
+    get:
+      tags: [Employees]
+      summary: Get employees
+    post:
+      tags: [Employees]
+      summary: Create employee
 
-## 13. System Health
+  /employees/{id}:
+    get:
+      tags: [Employees]
+      summary: Get employee
+    put:
+      tags: [Employees]
+      summary: Update employee
+    delete:
+      tags: [Employees]
+      summary: Delete employee
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| GET | `/health` | Server health check |
-| GET | `/health/db` | Database connectivity check |
+  /employees/project/{projectId}:
+    get:
+      tags: [Employees]
+      summary: Get employees by project
 
----
+  /attendance/record:
+    post:
+      tags: [Attendance]
+      summary: Record attendance
 
-## WebSocket Events (Socket.IO)
+  /attendance/project/{projectId}/date/{date}:
+    get:
+      tags: [Attendance]
+      summary: Get attendance by date
 
-### Client to Server
-- `join-user-room(userId)`: Join room for notifications
-- `leave-user-room(userId)`: Leave room for notifications
-- `join-task-room(taskId)`: Join room for real-time comments
-- `leave-task-room(taskId)`: Leave room for real-time comments
-- `typing-start(data)`: Broadcast typing status
-- `typing-stop(data)`: Broadcast typing status
+  /attendance/project/{projectId}/range:
+    get:
+      tags: [Attendance]
+      summary: Get attendance by range
 
-### Server to Client
-- `new-notification`: New notification alert
-- `user-typing`: Real-time typing indicator
+  /attendance/project/{projectId}/summary:
+    get:
+      tags: [Attendance]
+      summary: Get attendance summary
+
+  /push/vapid-public-key:
+    get:
+      tags: [Push]
+      summary: Get VAPID public key
+      security: []
+
+  /push/subscribe:
+    post:
+      tags: [Push]
+      summary: Subscribe to push notifications
+
+  /push/unsubscribe:
+    post:
+      tags: [Push]
+      summary: Unsubscribe from push notifications
+
+  /push/subscription-status:
+    get:
+      tags: [Push]
+      summary: Get subscription status
+
+  /push/test-notification:
+    post:
+      tags: [Push]
+      summary: Send test notification
+
+  /health:
+    get:
+      tags: [System]
+      summary: Server health check
+
+  /health/db:
+    get:
+      tags: [System]
+      summary: Database health check

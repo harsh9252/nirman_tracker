@@ -5,7 +5,8 @@ class ProjectController {
     static getAllProjects(req, res) {
         Project.getAll(req.user, (err, results) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error('Error fetching all projects:', err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
             res.json(results);
         });
@@ -17,7 +18,8 @@ class ProjectController {
 
         Project.getById(id, req.user, (err, results) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error(`Error fetching project with ID ${id}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             if (results.length === 0) {
@@ -34,7 +36,8 @@ class ProjectController {
 
         Project.getByClientId(clientId, req.user, (err, results) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error(`Error fetching projects for client ID ${clientId}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
             res.json(results);
         });
@@ -56,7 +59,8 @@ class ProjectController {
 
         Project.create(projectData, (err, result) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error('Error creating project:', err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             res.status(201).json({
@@ -73,7 +77,8 @@ class ProjectController {
 
         Project.update(id, projectData, (err, result) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error(`Error updating project with ID ${id}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             if (result.affectedRows === 0) {
@@ -90,7 +95,8 @@ class ProjectController {
 
         Project.delete(id, (err, result) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error(`Error deleting project with ID ${id}:`, err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             if (result.affectedRows === 0) {
@@ -105,7 +111,8 @@ class ProjectController {
     static getProjectStats(req, res) {
         Project.getStats(req.user, (err, results) => {
             if (err) {
-                return res.status(500).json({ error: err.message });
+                console.error('Error fetching project statistics:', err);
+                return res.status(500).json({ error: 'Internal server error' });
             }
 
             if (results.length === 0) {

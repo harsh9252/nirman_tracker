@@ -17,6 +17,8 @@ import EmployeesPage from './pages/EmployeesPage.jsx';
 import ChangePasswordPopup from './components/ChangePasswordPopup.jsx';
 import { useTranslation } from './services/translationService.jsx';
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // AuthBootstrap - Blocks ALL route rendering until auth is resolved
 function AuthBootstrap({ children }) {
@@ -237,7 +239,6 @@ function AppLayout() {
             <Routes>
               <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-              <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
               <Route path="/lead-management" element={<ProtectedRoute><LeadsPage searchTerm={searchTerm} /></ProtectedRoute>} />
               {/* Placeholder routes for other pages */}
               <Route path="/clients-management" element={<ProtectedRoute><ClientsPage searchTerm={searchTerm} /></ProtectedRoute>} />
@@ -367,15 +368,24 @@ function AppContent() {
     );
   }
 
-  // If not authenticated, show login page
+  // If not authenticated, show login or public pages
   if (!isAuthenticated()) {
-    return <LoginSignupPage />;
+    return (
+      <Routes>
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="*" element={<LoginSignupPage />} />
+      </Routes>
+    );
   }
 
   // If authenticated, show the main app with password change popup if needed
   return (
     <>
-      <AppLayout />
+      <Routes>
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="*" element={<AppLayout />} />
+      </Routes>
+      <ToastContainer position="top-right" autoClose={3000} />
       {requiresPasswordChange() && showPasswordChange && (
         <ChangePasswordPopup
           user={user}

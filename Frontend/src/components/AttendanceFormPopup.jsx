@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiX, FiUpload, FiMapPin } from 'react-icons/fi';
+import { FiX, FiMapPin, FiCheckCircle, FiLoader, FiCamera } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 
 // InputField component
 const InputField = ({ label, required, type = "text", value, onChange, placeholder, helperText, helperTextColor, ...rest }) => (
@@ -202,13 +203,13 @@ export default function AttendanceFormPopup({ isOpen, onClose, onSubmit, project
                     }
                 }));
 
-                alert('Location captured successfully!');
+                toast.success('Location captured successfully!');
             } catch (error) {
                 console.error('Error getting location:', error);
-                alert('Unable to get location. Please enable location permissions.');
+                toast.error('Unable to get location. Please enable location permissions.');
             }
         } else {
-            alert("Geolocation is not supported by your browser");
+            toast.error("Geolocation is not supported by your browser");
         }
     };
 
@@ -265,13 +266,13 @@ export default function AttendanceFormPopup({ isOpen, onClose, onSubmit, project
 
             console.log('Submitting attendance data:', attendanceData);
 
-            alert('Attendance recorded successfully!');
+            toast.success('Attendance recorded successfully!');
 
             if (onSubmit) onSubmit();
             onClose();
         } catch (error) {
             console.error('Error recording attendance:', error);
-            alert('Failed to record attendance');
+            toast.error(error.message || 'Failed to record attendance');
         } finally {
             setIsSubmitting(false);
         }

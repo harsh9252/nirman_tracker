@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FiX } from "react-icons/fi";
 
-const InputField = ({ label, required, type = "text", value, onChange, placeholder, ...rest }) => (
+const InputField = ({ label, required, type = "text", value, onChange, placeholder, error, ...rest }) => (
   <div className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
     <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
       {label}{required && <span style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)' }} className="ml-1">*</span>}
@@ -17,18 +17,22 @@ const InputField = ({ label, required, type = "text", value, onChange, placehold
         padding: 'var(--input-padding)',
         fontSize: 'var(--input-font-size)',
         fontFamily: 'var(--font-family)',
-        border: `1px solid var(--input-border-color)`,
+        border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
         borderRadius: 'var(--input-border-radius)',
         backgroundColor: 'var(--input-bg-color)',
         color: 'var(--input-text-color)',
         outline: 'none',
         transition: 'border-color 0.2s',
       }}
-      onFocus={(e) => e.target.style.borderColor = 'var(--input-focus-border-color)'}
-      onBlur={(e) => e.target.style.borderColor = 'var(--input-border-color)'}
+      onFocus={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-focus-border-color)'}
+      onBlur={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-border-color)'}
       {...rest}
     />
-
+    {error && (
+      <span style={{ fontSize: '11px', color: '#ef4444', marginTop: '4px', fontFamily: 'var(--font-family)', display: 'block' }}>
+        {error}
+      </span>
+    )}
   </div>
 );
 
@@ -129,6 +133,18 @@ export default function ClientFormPopup({ isOpen, onClose, onSubmit, editClient 
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [errors, setErrors] = useState({});
+
+  // Helper to clear error for a specific field
+  const clearError = (field) => {
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -156,14 +172,47 @@ export default function ClientFormPopup({ isOpen, onClose, onSubmit, editClient 
       setStatus("");
       setDate(new Date().toISOString().slice(0, 10));
     }
+    // Clear errors when form opens or client changes
+    setErrors({});
   }, [editClient, isOpen]);
 
 
 
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!clientName.trim()) {
+      newErrors.clientName = 'Client name is required';
+    }
+
+    if (phone && phone.trim()) {
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phone)) {
+        newErrors.phone = 'Phone number must be exactly 10 digits';
+      }
+    } else if (!phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    }
+
+    if (email && email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        newErrors.email = 'Invalid email format';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     const clientData = {
-      client_name: clientName || "Unnamed Client",
+      client_name: clientName,
       email: email || "",
       phone: phone || "",
       company_name: company || "",
@@ -213,8 +262,9 @@ export default function ClientFormPopup({ isOpen, onClose, onSubmit, editClient 
                 label="CLIENT NAME"
                 required
                 value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
+                onChange={(e) => { setClientName(e.target.value); clearError('clientName'); }}
                 placeholder="Enter client name"
+                error={errors.clientName}
               />
             </div>
             <div className="md:col-span-1">
@@ -247,17 +297,19 @@ export default function ClientFormPopup({ isOpen, onClose, onSubmit, editClient 
                 label="EMAIL"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); clearError('email'); }}
                 placeholder="Enter email address"
+                error={errors.email}
               />
             </div>
             <div className="md:col-span-1">
               <InputField
                 label="PHONE NO."
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => { setPhone(e.target.value); clearError('phone'); }}
                 placeholder="Enter 10-digit phone number"
                 maxLength={10}
+                error={errors.phone}
               />
             </div>
             <div className="md:col-span-2">

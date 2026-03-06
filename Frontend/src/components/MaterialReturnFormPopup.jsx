@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FiX, FiLoader } from 'react-icons/fi';
+import { FiX, FiLoader, FiCalendar, FiUser, FiBox, FiPlus, FiTrash2, FiFileText, FiUpload, FiCheck, FiCornerUpLeft, FiHash } from 'react-icons/fi';
 import AddMaterialFormPopup from './AddMaterialFormPopup';
 import apiService from '../services/api';
 
-const MaterialReturnFormPopup = ({ isOpen, onClose, projectName, projectId, onSuccess }) => {
+const MaterialReturnFormPopup = ({ isOpen, onClose, projectName, projectId, clientName, onSuccess }) => {
     const [formData, setFormData] = useState({
         returnDate: new Date().toISOString().split('T')[0],
         partyName: '',
@@ -18,17 +18,15 @@ const MaterialReturnFormPopup = ({ isOpen, onClose, projectName, projectId, onSu
     });
 
     const [showMaterialForm, setShowMaterialForm] = useState(false);
-    const [showDiscountField, setShowDiscountField] = useState(false);
-    const [showAdditionalChargesField, setShowAdditionalChargesField] = useState(false);
-    const [showGSTField, setShowGSTField] = useState(false);
-    const [showReferenceField, setShowReferenceField] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [selectedFile, setSelectedFile] = useState(null);
+    const fileInputRef = React.useRef(null);
 
     useEffect(() => {
         if (isOpen) {
             setFormData({
                 returnDate: new Date().toISOString().split('T')[0],
-                partyName: '',
+                partyName: clientName || '',
                 materials: [],
                 subTotal: '',
                 discount: '',
@@ -38,26 +36,37 @@ const MaterialReturnFormPopup = ({ isOpen, onClose, projectName, projectId, onSu
                 reference: '',
                 note: ''
             });
+            setSelectedFile(null);
         }
     }, [isOpen]);
 
     // Calculate totals
+    // Calculate total from materials
     useEffect(() => {
-        const subTotal = parseFloat(formData.subTotal) || 0;
-        const discount = parseFloat(formData.discount) || 0;
-        const additionalCharges = parseFloat(formData.additionalCharges) || 0;
-        const gst = parseFloat(formData.gst) || 0;
-
-        const totalAmount = subTotal - discount + additionalCharges + gst;
+        const total = formData.materials.reduce((sum, material) => {
+            const amount = parseFloat(material.amount) || 0;
+            return sum + amount;
+        }, 0);
 
         setFormData(prev => ({
             ...prev,
-            totalAmount: totalAmount.toFixed(2)
+            totalAmount: total.toFixed(2)
         }));
-    }, [formData.subTotal, formData.discount, formData.additionalCharges, formData.gst]);
+    }, [formData.materials]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File size too large. Maximum 5MB allowed.');
+                return;
+            }
+            setSelectedFile(file);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -70,16 +79,35 @@ const MaterialReturnFormPopup = ({ isOpen, onClose, projectName, projectId, onSu
 
         setSubmitting(true);
         try {
-            await apiService.createTransaction({
-                project_id: projectId,
-                type: 'Material Return',
-                party_name: formData.partyName,
-                amount: parseFloat(formData.totalAmount),
-                payment_method: 'credit', // Material return is often a credit to the project
-                date: formData.returnDate,
-                reference_no: formData.reference,
-                description: formData.note
+            const data = new FormData();
+            data.append('project_id', projectId);
+            data.append('type', 'Material Return');
+            data.append('party_name', formData.partyName);
+            data.append('amount', parseFloat(formData.totalAmount));
+            data.append('payment_method', 'credit'); // Defaults to credit
+            data.append('date', formData.returnDate);
+            data.append('reference_no', formData.reference);
+            data.append('description', formData.note);
+
+            if (selectedFile) {
+                data.append('attachment', selectedFile);
+            }
+
+            const response = await apiService.createTransaction(data);
+
+            // Log inventory entries (Stock Out/Return)
+            const inventoryPromises = formData.materials.map(material => {
+                return apiService.createInventoryEntry({
+                    project_id: projectId,
+                    material_name: material.materialName,
+                    quantity: material.quantity,
+                    unit: material.unit || 'unit',
+                    type: 'Return',
+                    transaction_date: formData.returnDate,
+                    description: `Returned to ${formData.partyName} (Ref: ${formData.reference})`
+                });
             });
+            await Promise.all(inventoryPromises);
 
             if (onSuccess) onSuccess();
             onClose();
@@ -93,279 +121,199 @@ const MaterialReturnFormPopup = ({ isOpen, onClose, projectName, projectId, onSu
 
     if (!isOpen) return null;
 
+    const inputStyle = "w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition-all";
+    const labelStyle = "block text-xs font-bold text-gray-400 uppercase tracking-widest mb-1.5";
+
     return (
         <>
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000] p-4">
-                <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[1100] p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
                     {/* Header */}
-                    <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <button onClick={onClose} className="text-gray-600 hover:text-gray-800">
-                                <FiX size={20} />
-                            </button>
-                            <h2 className="text-lg font-bold text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>MATERIAL RETURN</h2>
+                    <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-8 bg-amber-500 rounded-full"></div>
+                                <h2 className="text-xl font-bold text-gray-900 tracking-tight" style={{ fontFamily: 'var(--font-family)' }}>Record Material Return</h2>
+                            </div>
+                            <p className="text-sm text-gray-500 font-medium mt-0.5 ml-4" style={{ fontFamily: 'var(--font-family)' }}>{projectName}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={onClose}
-                                className="text-sm font-medium hover:opacity-80"
-                                style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={submitting}
-                                className="px-4 py-2 text-white text-sm font-medium rounded-lg hover:opacity-90 flex items-center gap-2 min-w-[80px] justify-center"
-                                style={{ backgroundColor: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                            >
-                                {submitting ? <FiLoader className="animate-spin" /> : 'Save'}
-                            </button>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500 hover:text-gray-700">
+                            <FiX size={20} />
+                        </button>
+                    </div>
+
+                    {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-8">
+
+                        {/* Section 1: Return Details */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div>
+                                <label className={labelStyle}>Party Name <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <FiUser />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={formData.partyName}
+                                        readOnly
+                                        className={`${inputStyle} pl-10 bg-gray-100 cursor-not-allowed`}
+                                        placeholder="Received By / Supplier"
+                                        style={{ fontFamily: 'var(--font-family)' }}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className={labelStyle}>Return Date <span className="text-rose-500">*</span></label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <FiCalendar />
+                                    </div>
+                                    <input
+                                        type="date"
+                                        value={formData.returnDate}
+                                        onChange={(e) => handleInputChange('returnDate', e.target.value)}
+                                        className={`${inputStyle} pl-10`}
+                                        style={{ fontFamily: 'var(--font-family)' }}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className={labelStyle}>Reference No.</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                        <FiHash />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={formData.reference}
+                                        onChange={(e) => handleInputChange('reference', e.target.value)}
+                                        className={`${inputStyle} pl-10`}
+                                        placeholder="Return Slip No."
+                                        style={{ fontFamily: 'var(--font-family)' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Section 2: Materials List */}
+                        <div>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-xs font-bold text-amber-600 uppercase tracking-widest flex items-center gap-2">
+                                    <FiCornerUpLeft /> Returned Items
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowMaterialForm(true)}
+                                    className="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
+                                >
+                                    <FiPlus size={16} /> Add Return Item
+                                </button>
+                            </div>
+
+                            <div className="border border-gray-200 rounded-xl overflow-hidden">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-amber-50/50 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider">
+                                        <tr>
+                                            <th className="px-4 py-3">Item Name</th>
+                                            <th className="px-4 py-3 text-right">Qty</th>
+                                            <th className="px-4 py-3 text-right">Rate</th>
+                                            <th className="px-4 py-3 text-right">Amount</th>
+                                            <th className="px-4 py-3 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {formData.materials.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="5" className="px-4 py-8 text-center text-gray-400 italic">
+                                                    No items added for return.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            formData.materials.map((material, index) => (
+                                                <tr key={index} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-4 py-3 font-medium text-gray-900">{material.materialName}</td>
+                                                    <td className="px-4 py-3 text-right font-medium">{material.quantity}</td>
+                                                    <td className="px-4 py-3 text-right text-gray-500">{material.rate}</td>
+                                                    <td className="px-4 py-3 text-right font-bold text-gray-900">{material.amount}</td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <button
+                                                            onClick={() => {
+                                                                const newMaterials = formData.materials.filter((_, i) => i !== index);
+                                                                handleInputChange('materials', newMaterials);
+                                                            }}
+                                                            className="text-gray-400 hover:text-rose-500 transition-colors p-1"
+                                                        >
+                                                            <FiTrash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Section 3: Financials & Totals */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Left Column: Extra Details */}
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelStyle}>Attachments</label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="file"
+                                            ref={fileInputRef}
+                                            onChange={handleFileChange}
+                                            className="hidden"
+                                            accept="image/*,.pdf"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current.click()}
+                                            className="px-4 py-2 bg-white border border-dashed border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:border-amber-400 hover:text-amber-600 transition-all flex items-center gap-2"
+                                            style={{ fontFamily: 'var(--font-family)' }}
+                                        >
+                                            <FiUpload />
+                                            {selectedFile ? 'Change File' : 'Upload Proof'}
+                                        </button>
+                                        {selectedFile && (
+                                            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold">
+                                                <span className="truncate max-w-[150px]">{selectedFile.name}</span>
+                                                <button onClick={() => setSelectedFile(null)} className="hover:text-rose-600"><FiX /></button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right Column: Calculations */}
+
                         </div>
                     </div>
 
-                    {/* Form Content */}
-                    <form onSubmit={handleSubmit} className="p-3 space-y-2.5">
-                        {/* Return Date */}
-                        <div className="flex items-center justify-end">
-                            <div className="flex items-center gap-2 text-sm" style={{ fontFamily: 'var(--font-family)' }}>
-                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <input
-                                    type="date"
-                                    value={formData.returnDate}
-                                    onChange={(e) => handleInputChange('returnDate', e.target.value)}
-                                    className="border-0 text-sm font-medium"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Party Name */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                PARTY NAME
-                            </label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    value={formData.partyName}
-                                    onChange={(e) => handleInputChange('partyName', e.target.value)}
-                                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-sm bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    placeholder=""
-                                />
-                                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Add Materials Button */}
+                    {/* Footer */}
+                    <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
                         <button
-                            type="button"
-                            onClick={() => setShowMaterialForm(true)}
-                            className="w-full py-2.5 border-2 border-dashed rounded-lg text-sm font-medium hover:opacity-80"
-                            style={{ borderColor: 'var(--primary-color)', color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
+                            onClick={onClose}
+                            className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:text-gray-800 hover:bg-white border border-transparent hover:border-gray-200 transition-all uppercase tracking-wide"
+                            style={{ fontFamily: 'var(--font-family)' }}
                         >
-                            + Add Materials
+                            Cancel
                         </button>
-
-                        {/* Materials List */}
-                        {formData.materials.length > 0 && (
-                            <div className="space-y-2">
-                                {formData.materials.map((material, index) => (
-                                    <div key={index} className="border border-gray-200 rounded-lg p-3">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm font-medium text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>{material.materialName}</p>
-                                                <p className="text-xs text-gray-500" style={{ fontFamily: 'var(--font-family)' }}>Unit: {material.unit} | GST: {material.gstPercent}% | Category: {material.category}</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const newMaterials = formData.materials.filter((_, i) => i !== index);
-                                                    handleInputChange('materials', newMaterials);
-                                                }}
-                                                className="text-red-500 hover:text-red-700 text-xs"
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* Sub Total */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                Sub Total
-                            </label>
-                            <input
-                                type="number"
-                                value={formData.subTotal}
-                                onChange={(e) => handleInputChange('subTotal', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                                placeholder=""
-                                step="0.01"
-                            />
-                        </div>
-
-                        {/* Add Discount, Add Additional Charges, Add GST Buttons */}
-                        <div className="flex gap-3 text-sm">
-                            {!showDiscountField && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowDiscountField(true)}
-                                    className="font-medium hover:opacity-80"
-                                    style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                                >
-                                    + Add Discount
-                                </button>
-                            )}
-                            {!showAdditionalChargesField && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAdditionalChargesField(true)}
-                                    className="font-medium hover:opacity-80"
-                                    style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                                >
-                                    + Add Additional Charges
-                                </button>
-                            )}
-                            {!showGSTField && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowGSTField(true)}
-                                    className="font-medium hover:opacity-80"
-                                    style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                                >
-                                    + Add GST
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Discount Field */}
-                        {showDiscountField && (
-                            <div className="relative">
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    Discount
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.discount}
-                                    onChange={(e) => handleInputChange('discount', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    placeholder=""
-                                    step="0.01"
-                                />
-                            </div>
-                        )}
-
-                        {/* Additional Charges Field */}
-                        {showAdditionalChargesField && (
-                            <div className="relative">
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    Additional Charges
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.additionalCharges}
-                                    onChange={(e) => handleInputChange('additionalCharges', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    placeholder=""
-                                    step="0.01"
-                                />
-                            </div>
-                        )}
-
-                        {/* GST Field */}
-                        {showGSTField && (
-                            <div className="relative">
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    GST
-                                </label>
-                                <input
-                                    type="number"
-                                    value={formData.gst}
-                                    onChange={(e) => handleInputChange('gst', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    placeholder=""
-                                    step="0.01"
-                                />
-                            </div>
-                        )}
-
-                        {/* Total Amount */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                Total Amount
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.totalAmount}
-                                readOnly
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                            />
-                        </div>
-
-                        {/* Add Reference Button */}
-                        {!showReferenceField && (
-                            <button
-                                type="button"
-                                onClick={() => setShowReferenceField(true)}
-                                className="text-sm font-medium hover:opacity-80"
-                                style={{ color: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
-                            >
-                                + Reference
-                            </button>
-                        )}
-
-                        {/* Reference Field */}
-                        {showReferenceField && (
-                            <div className="relative">
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                    Reference
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.reference}
-                                    onChange={(e) => handleInputChange('reference', e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                    style={{ fontFamily: 'var(--font-family)' }}
-                                    placeholder=""
-                                />
-                            </div>
-                        )}
-
-                        {/* Note (Optional) */}
-                        <div className="relative">
-                            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 tracking-wider z-10" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                                Note(Optional)
-                            </label>
-                            <textarea
-                                value={formData.note}
-                                onChange={(e) => handleInputChange('note', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none bg-white"
-                                style={{ fontFamily: 'var(--font-family)' }}
-                                rows="3"
-                                placeholder=""
-                            />
-                        </div>
-                    </form>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className="px-8 py-2.5 rounded-xl text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 shadow-lg shadow-amber-200 transition-all flex items-center gap-2 uppercase tracking-wide"
+                            style={{ fontFamily: 'var(--font-family)' }}
+                        >
+                            {submitting ? <FiLoader className="animate-spin" /> : <><FiCheck /> Save Return</>}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* Add Material Form Popup */}
             <AddMaterialFormPopup
                 isOpen={showMaterialForm}
                 onClose={() => setShowMaterialForm(false)}

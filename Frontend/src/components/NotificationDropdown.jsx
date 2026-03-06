@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import useOnClickOutside from '../hooks/useOnClickOutside';
 import { FiBell, FiCheck, FiX, FiExternalLink, FiUserCheck, FiClipboard, FiAlertCircle, FiInfo, FiMessageSquare } from 'react-icons/fi';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -225,16 +226,7 @@ const NotificationDropdown = ({ size = 20 }) => {
   };
 
   // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useOnClickOutside(dropdownRef, () => setIsOpen(false));
 
   // Socket.IO connection and real-time notifications
   useEffect(() => {
@@ -430,9 +422,8 @@ const NotificationDropdown = ({ size = 20 }) => {
                 return (
                   <div
                     key={notification.id}
-                    className={`px-3 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${
-                      !notification.is_read ? 'bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-l-blue-400' : ''
-                    }`}
+                    className={`px-3 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-all duration-200 ${!notification.is_read ? 'bg-gradient-to-r from-blue-50 to-transparent border-l-4 border-l-blue-400' : ''
+                      }`}
                     onClick={() => handleNotificationClick(notification)}
                     style={{ fontFamily: 'var(--font-family)' }}
                   >

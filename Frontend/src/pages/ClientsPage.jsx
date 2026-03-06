@@ -7,8 +7,6 @@ import ClientFormPopup from "../components/ClientFormPopup";
 import ClientInfo from "../components/ClientInfo";
 import ProjectFormPopup from "../components/ProjectFormPopup";
 import apiService from "../services/api";
-import Swal from "sweetalert2";
-import { toast } from "react-toastify";
 
 import { useAuth } from "../contexts/AuthContext";
 
@@ -31,6 +29,11 @@ export default function ClientsPage({ searchTerm = '' }) {
   const [prefilledClientName, setPrefilledClientName] = useState('');
   const [prefilledAddress, setPrefilledAddress] = useState('');
   const filterDropdownRef = React.useRef(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Fetch clients from API
   const fetchClients = async () => {
@@ -98,26 +101,41 @@ export default function ClientsPage({ searchTerm = '' }) {
   };
 
   const handleDeleteRow = async (id) => {
-    const result = await Swal.fire({
-      title: 'Are you sure?',
-      text: "This action cannot be undone and will delete all associated projects.",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, delete it!'
-    });
-
-    if (result.isConfirmed) {
-      try {
-        await apiService.deleteClient(id);
-        fetchClients(); // Refresh the list from the server
-        toast.success('Client deleted successfully');
-      } catch (error) {
-        console.error('Error deleting client:', error);
-        toast.error(`Failed to delete client: ${error.message}`);
-      }
+    const client = clientsData.find(c => c.id === id);
+    if (client) {
+      setClientToDelete(client);
+      setDeleteError(null);
+      setShowDeleteConfirm(true);
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!clientToDelete) return;
+
+    try {
+      await apiService.deleteClient(clientToDelete.id);
+      fetchClients(); // Refresh the list from the server
+
+      setShowDeleteConfirm(false);
+      setClientToDelete(null);
+
+      // Show success message
+      setSuccessMessage("Client deleted successfully");
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setSuccessMessage("");
+      }, 3000);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      setDeleteError(error.message || 'Failed to delete client');
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setClientToDelete(null);
+    setDeleteError(null);
   };
 
   const handleCreateClient = async (newClient) => {
@@ -430,6 +448,86 @@ export default function ClientsPage({ searchTerm = '' }) {
         prefilledClientName={prefilledClientName}
         prefilledAddress={prefilledAddress}
       />
+
+      {/* Success Message Toast */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-[1200] bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
+          <p className="text-sm font-medium" style={{ fontFamily: 'var(--font-family)' }}>
+            {successMessage}
+          </p>
+        </div>
+      )}
+
+      {/* Custom Delete Confirmation Dialog */}
+      {showDeleteConfirm && clientToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                <FaTrash className="text-red-600" size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900" style={{ fontFamily: 'var(--font-family)' }}>
+                  Delete Client
+                </h3>
+                <p className="text-sm text-gray-600" style={{ fontFamily: 'var(--font-family)' }}>
+                  This action cannot be undone
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              {deleteError ? (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-3 h-3 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800 mb-1" style={{ fontFamily: 'var(--font-family)' }}>
+                        Unable to Delete Client
+                      </h4>
+                      <div className="text-sm text-red-700 whitespace-pre-line" style={{ fontFamily: 'var(--font-family)' }}>
+                        {deleteError}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-700" style={{ fontFamily: 'var(--font-family)' }}>
+                  Are you sure you want to delete <strong>{clientToDelete.name}</strong>?
+                  <br /><br />
+                  This action cannot be undone and will delete all associated projects.
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={cancelDelete}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                style={{ fontFamily: 'var(--font-family)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={!!deleteError}
+                className={`px-4 py-2 rounded-lg transition-colors ${deleteError
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                  : 'bg-red-600 text-white hover:bg-red-700'
+                  }`}
+                style={{ fontFamily: 'var(--font-family)' }}
+                title={deleteError ? 'Cannot delete client' : 'Delete this client'}
+              >
+                Delete Client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

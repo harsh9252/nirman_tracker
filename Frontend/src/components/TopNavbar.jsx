@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import useOnClickOutside from "../hooks/useOnClickOutside";
 import { FiSearch, FiUser, FiLogOut, FiChevronDown } from "react-icons/fi";
 import LanguageSelector from "./LanguageSelector";
 import NotificationDropdown from "./NotificationDropdown";
@@ -7,15 +9,18 @@ import "../assets/CSS/TopNavbar.css";
 
 export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearch }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showDesktopUserMenu, setShowDesktopUserMenu] = useState(false);
+  const [showMobileUserMenu, setShowMobileUserMenu] = useState(false);
   const { user, logout } = useAuth();
-  const userMenuRef = useRef(null);
+  const desktopUserMenuRef = useRef(null);
+  const mobileUserMenuRef = useRef(null);
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
-    setShowUserMenu(false);
-    // Hard redirect to clear router memory completely
-    window.location.href = '/#/login';
+    setShowDesktopUserMenu(false);
+    setShowMobileUserMenu(false);
+    navigate('/login');
   };
 
   const getInitials = (firstName, lastName) => {
@@ -33,26 +38,8 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
   };
 
   // Handle clicks outside the user menu to close it
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Don't close if clicking on dropdown menu items
-      if (event.target.closest('.user-dropdown-menu')) {
-        return;
-      }
-
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setShowUserMenu(false);
-      }
-    };
-
-    if (showUserMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showUserMenu]);
+  useOnClickOutside(desktopUserMenuRef, () => setShowDesktopUserMenu(false));
+  useOnClickOutside(mobileUserMenuRef, () => setShowMobileUserMenu(false));
 
   return (
     <div className="top-navbar-container">
@@ -78,11 +65,11 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
           {/* <LanguageSelector title={title} subtitle={subtitle} /> */}
 
           {/* USER MENU */}
-          <div className="relative" ref={userMenuRef}>
+          <div className="relative" ref={desktopUserMenuRef}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setShowUserMenu(!showUserMenu);
+                setShowDesktopUserMenu(!showDesktopUserMenu);
               }}
               className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
             >
@@ -107,12 +94,12 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
               </div>
               <FiChevronDown
                 size={16}
-                className={`text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                className={`text-gray-500 transition-transform ${showDesktopUserMenu ? 'rotate-180' : ''}`}
               />
             </button>
 
             {/* USER DROPDOWN MENU */}
-            {showUserMenu && (
+            {showDesktopUserMenu && (
               <div className="user-dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                 <div className="user-info px-4 py-3 border-b border-gray-200">
                   <p className="user-name">
@@ -126,8 +113,8 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
                   onClick={(e) => {
                     e.stopPropagation();
                     // Navigate to profile page using hash routing
-                    window.location.href = '/#/profile';
-                    setShowUserMenu(false);
+                    navigate('/profile');
+                    setShowDesktopUserMenu(false);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
@@ -164,11 +151,11 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
           {/* <LanguageSelector title={title} subtitle={subtitle} /> */}
 
           {/* USER MENU - MOBILE */}
-          <div className="relative" ref={userMenuRef}>
+          <div className="relative" ref={mobileUserMenuRef}>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setShowUserMenu(!showUserMenu);
+                setShowMobileUserMenu(!showMobileUserMenu);
               }}
               className="flex items-center gap-1 p-1 rounded-lg hover:bg-gray-100 transition-colors"
             >
@@ -193,12 +180,12 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
               </div>
               <FiChevronDown
                 size={14}
-                className={`text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                className={`text-gray-500 transition-transform ${showMobileUserMenu ? 'rotate-180' : ''}`}
               />
             </button>
 
             {/* USER DROPDOWN MENU - MOBILE */}
-            {showUserMenu && (
+            {showMobileUserMenu && (
               <div className="user-dropdown-menu absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                 <div className="user-info px-4 py-3 border-b border-gray-200">
                   <p className="user-name">
@@ -211,8 +198,8 @@ export default function TopNavbar({ title, subtitle, onMobileMenuToggle, onSearc
                   onClick={(e) => {
                     e.stopPropagation();
                     // Navigate to profile page using hash routing
-                    window.location.href = '/#/profile';
-                    setShowUserMenu(false);
+                    navigate('/profile');
+                    setShowMobileUserMenu(false);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >

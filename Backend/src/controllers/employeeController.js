@@ -1,11 +1,12 @@
 const Employee = require('../models/Employee');
+const SalaryType = require('../models/SalaryType');
 
 // Get all employees
 exports.getAllEmployees = (req, res) => {
     Employee.getAll((err, results) => {
         if (err) {
             console.error('Error fetching employees:', err);
-            return res.status(500).json({ error: 'Failed to fetch employees' });
+            return res.status(500).json({ error: 'Internal server error' });
         }
         res.json(results);
     });
@@ -16,8 +17,8 @@ exports.getEmployeeById = (req, res) => {
     const { id } = req.params;
     Employee.getById(id, (err, results) => {
         if (err) {
-            console.error('Error fetching employee:', err);
-            return res.status(500).json({ error: 'Failed to fetch employee' });
+            console.error(`Error fetching employee with ID ${id}:`, err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
         if (results.length === 0) {
             return res.status(404).json({ error: 'Employee not found' });
@@ -37,7 +38,7 @@ exports.createEmployee = (req, res) => {
     Employee.create(employeeData, (err, result) => {
         if (err) {
             console.error('Error creating employee:', err);
-            return res.status(500).json({ error: 'Failed to create employee' });
+            return res.status(500).json({ error: 'Internal server error' });
         }
         res.status(201).json({
             message: 'Employee created successfully',
@@ -57,8 +58,8 @@ exports.updateEmployee = (req, res) => {
 
     Employee.update(id, employeeData, (err, result) => {
         if (err) {
-            console.error('Error updating employee:', err);
-            return res.status(500).json({ error: 'Failed to update employee' });
+            console.error(`Error updating employee with ID ${id}:`, err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Employee not found' });
@@ -72,8 +73,8 @@ exports.deleteEmployee = (req, res) => {
     const { id } = req.params;
     Employee.delete(id, (err, result) => {
         if (err) {
-            console.error('Error deleting employee:', err);
-            return res.status(500).json({ error: 'Failed to delete employee' });
+            console.error(`Error deleting employee with ID ${id}:`, err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Employee not found' });
@@ -87,8 +88,19 @@ exports.getEmployeesByProject = (req, res) => {
     const { projectId } = req.params;
     Employee.getByProject(projectId, (err, results) => {
         if (err) {
-            console.error('Error fetching employees by project:', err);
-            return res.status(500).json({ error: 'Failed to fetch employees' });
+            console.error(`Error fetching employees for project ID ${projectId}:`, err);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.json(results);
+    });
+};
+
+// Get all salary types
+exports.getSalaryTypes = (req, res) => {
+    SalaryType.getAll((err, results) => {
+        if (err) {
+            console.error('Error fetching salary types:', err);
+            return res.status(500).json({ error: 'Internal server error' });
         }
         res.json(results);
     });

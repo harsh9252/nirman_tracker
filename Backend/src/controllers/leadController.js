@@ -6,7 +6,8 @@ class LeadController {
   static getAllLeads(req, res) {
     Lead.getAll((err, results) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        console.error('Error fetching leads:', err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
       res.json(results);
     });
@@ -18,7 +19,8 @@ class LeadController {
 
     Lead.getById(id, (err, results) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        console.error(`Error fetching lead with ID ${id}:`, err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
 
       if (results.length === 0) {
@@ -35,7 +37,8 @@ class LeadController {
 
     Lead.create(leadData, (err, result) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        console.error('Error creating lead:', err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
       res.json({
         message: 'Lead saved successfully',
@@ -52,7 +55,8 @@ class LeadController {
     // First, get the current lead to check its status
     Lead.getById(id, (err, results) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        console.error(`Error fetching lead with ID ${id} for update:`, err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
 
       if (results.length === 0) {
@@ -84,7 +88,8 @@ class LeadController {
 
         Lead.markAsLost(id, lostReason, (lostErr, lostResult) => {
           if (lostErr) {
-            return res.status(500).json({ error: 'Failed to mark lead as lost: ' + lostErr.message });
+            console.error(`Error marking lead ${id} as lost:`, lostErr);
+            return res.status(500).json({ error: 'Internal server error' });
           }
 
           if (lostResult.affectedRows === 0) {
@@ -94,7 +99,8 @@ class LeadController {
           // Also update the lead data
           Lead.update(id, leadData, (updateErr) => {
             if (updateErr) {
-              return res.status(500).json({ error: updateErr.message });
+              console.error(`Error updating lead ${id} after marking as lost:`, updateErr);
+              return res.status(500).json({ error: 'Internal server error' });
             }
 
             res.json({
@@ -107,7 +113,8 @@ class LeadController {
         // Normal update
         Lead.update(id, leadData, (err, result) => {
           if (err) {
-            return res.status(500).json({ error: err.message });
+            console.error(`Error updating lead ${id}:`, err);
+            return res.status(500).json({ error: 'Internal server error' });
           }
 
           if (result.affectedRows === 0) {
@@ -127,7 +134,8 @@ class LeadController {
     // Check if lead can be deleted
     Lead.canDelete(id, (err, canDelete, lead) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        console.error(`Error checking deletion eligibility for lead ${id}:`, err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
 
       if (!canDelete) {
@@ -146,13 +154,13 @@ class LeadController {
       // Proceed with deletion
       Lead.delete(id, (err, result) => {
         if (err) {
-          return res.status(500).json({ error: err.message });
+          console.error(`Error deleting lead ${id}:`, err);
+          return res.status(500).json({ error: 'Internal server error' });
         }
 
         if (result.affectedRows === 0) {
           return res.status(404).json({ error: 'Lead not found' });
         }
-
 
         res.json({ message: 'Lead deleted successfully' });
       });
@@ -166,7 +174,8 @@ class LeadController {
     // First, get the lead data
     Lead.getById(id, (err, results) => {
       if (err) {
-        return res.status(500).json({ error: err.message });
+        console.error(`Error fetching lead ${id} for conversion:`, err);
+        return res.status(500).json({ error: 'Internal server error' });
       }
 
       if (results.length === 0) {
@@ -193,9 +202,8 @@ class LeadController {
       // Create client from lead data
       Client.createFromLead(lead, id, (clientErr, clientResult) => {
         if (clientErr) {
-          return res.status(500).json({
-            error: 'Failed to create client: ' + clientErr.message
-          });
+          console.error(`Error creating client from lead ${id}:`, clientErr);
+          return res.status(500).json({ error: 'Internal server error' });
         }
 
         const clientId = clientResult.insertId;
@@ -203,10 +211,9 @@ class LeadController {
         // Mark lead as converted
         Lead.markAsConverted(id, clientId, (convertErr, convertResult) => {
           if (convertErr) {
-            // If marking as converted fails, we should ideally rollback the client creation
-            // For now, just return an error
+            console.error(`Error marking lead ${id} as converted:`, convertErr);
             return res.status(500).json({
-              error: 'Client created but failed to mark lead as converted: ' + convertErr.message,
+              error: 'Client created but failed to mark lead as converted',
               clientId: clientId
             });
           }

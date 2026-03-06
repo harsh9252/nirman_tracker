@@ -2,209 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FiX } from 'react-icons/fi';
 import apiService from '../services/api';
 import { toast } from 'react-toastify';
+import InputField from './common/InputField';
+import SelectField from './common/SelectField';
+import TextAreaField from './common/TextAreaField';
+import { formatDateForInput } from '../utils/dateUtils';
 
-// InputField component matching LeadFormPopup style
-const InputField = ({ label, required, type = "text", value, onChange, placeholder, helperText, helperTextColor, ...rest }) => (
-    <div className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-        <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-            <span>
-                {label}{required && <span style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)' }} className="ml-1">*</span>}
-            </span>
-        </label>
-        <input
-            type={type}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            style={{
-                width: '100%',
-                height: 'var(--input-height)',
-                padding: 'var(--input-padding)',
-                fontSize: 'var(--placeholder-font-size)',
-                fontFamily: 'var(--font-family)',
-                fontWeight: 'normal',
-                border: `1px solid ${helperTextColor === 'red' ? '#ef4444' : 'var(--input-border-color)'}`,
-                borderRadius: 'var(--input-border-radius)',
-                backgroundColor: 'var(--input-bg-color)',
-                color: 'var(--input-text-color)',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-            }}
-            onFocus={(e) => e.target.style.borderColor = helperTextColor === 'red' ? '#ef4444' : 'var(--input-focus-border-color)'}
-            onBlur={(e) => e.target.style.borderColor = helperTextColor === 'red' ? '#ef4444' : 'var(--input-border-color)'}
-            {...rest}
-        />
-        {helperText && (
-            <span style={{
-                fontSize: '11px',
-                color: helperTextColor || '#6b7280',
-                fontFamily: 'var(--font-family)',
-                marginTop: '4px',
-                display: 'block'
-            }}>
-                {helperText}
-            </span>
-        )}
-    </div>
-);
 
-// TextAreaField component
-const TextAreaField = ({ label, required, value, onChange, placeholder, rows = 3, maxLength, ...rest }) => (
-    <div className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-        <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)', zIndex: 1 }}>
-            <span>
-                {label}{required && <span style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)' }} className="ml-1">*</span>}
-            </span>
-        </label>
-        <textarea
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            rows={rows}
-            maxLength={maxLength}
-            style={{
-                width: '100%',
-                minHeight: '80px',
-                padding: 'var(--input-padding)',
-                fontSize: 'var(--placeholder-font-size)',
-                fontFamily: 'var(--font-family)',
-                fontWeight: 'normal',
-                border: `1px solid var(--input-border-color)`,
-                borderRadius: 'var(--input-border-radius)',
-                backgroundColor: 'var(--input-bg-color)',
-                color: 'var(--input-text-color)',
-                outline: 'none',
-                transition: 'border-color 0.2s',
-                resize: 'vertical',
-                overflow: 'auto',
-                wordWrap: 'break-word',
-                whiteSpace: 'pre-wrap'
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--input-focus-border-color)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--input-border-color)'}
-            {...rest}
-        />
-        {maxLength && (
-            <span style={{
-                fontSize: '11px',
-                color: '#6b7280',
-                fontFamily: 'var(--font-family)',
-                marginTop: '4px',
-                display: 'block'
-            }}>
-                {value?.length || 0}/{maxLength} characters
-            </span>
-        )}
-    </div>
-);
-
-// SelectField component matching LeadFormPopup style
-const SelectField = ({ label, required, options = [], value, onChange, placeholder }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const selectRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (isOpen && selectRef.current && !selectRef.current.contains(e.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isOpen]);
-
-    const handleSelect = (option) => {
-        onChange(option);
-        setIsOpen(false);
-    };
-
-    return (
-        <div ref={selectRef} className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-            <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
-                <span>
-                    {label}{required && <span style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)' }} className="ml-1">*</span>}
-                </span>
-            </label>
-            <div
-                onClick={() => setIsOpen(!isOpen)}
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        setIsOpen(!isOpen);
-                    }
-                }}
-                tabIndex={0}
-                style={{
-                    width: '100%',
-                    height: 'var(--input-height)',
-                    padding: 'var(--input-padding)',
-                    fontSize: 'var(--input-font-size)',
-                    fontFamily: 'var(--font-family)',
-                    border: `1px solid var(--input-border-color)`,
-                    borderRadius: 'var(--input-border-radius)',
-                    backgroundColor: 'var(--input-bg-color)',
-                    color: value ? 'var(--input-text-color)' : 'var(--input-placeholder-color)',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'border-color 0.2s',
-                }}
-                onFocus={(e) => e.target.style.borderColor = 'var(--input-focus-border-color)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--input-border-color)'}
-            >
-                <span style={{
-                    color: value ? 'var(--input-text-color)' : 'var(--input-placeholder-color)',
-                    fontSize: 'var(--placeholder-font-size)',
-                    fontFamily: 'var(--font-family)',
-                }}>
-                    {value || placeholder}
-                </span>
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                >
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                </svg>
-            </div>
-            {isOpen && (
-                <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto mt-1 w-full">
-                    {options.map((option, index) => (
-                        <div
-                            key={index}
-                            onClick={() => handleSelect(option)}
-                            style={{
-                                padding: '8px 12px',
-                                fontSize: 'var(--input-font-size)',
-                                fontFamily: 'var(--font-family)',
-                                color: option === value ? 'var(--input-placeholder-color)' : 'var(--input-text-color)',
-                                cursor: 'pointer',
-                                backgroundColor: option === value ? '#f3f4f6' : 'transparent',
-                            }}
-                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                            onMouseLeave={(e) => e.target.style.backgroundColor = option === value ? '#f3f4f6' : 'transparent'}
-                        >
-                            {option}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
-export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProject = null, preselectedClientId = null, prefilledClientName = null, prefilledAddress = null }) {
+export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProject = null, preselectedClientId = null, prefilledClientName = null, prefilledAddress = null, prefilledProjectType = null }) {
     const [formData, setFormData] = useState({
         project_name: '',
         client_id: preselectedClientId || '',
         address: prefilledAddress || '',
-        project_type: 'Other',
+        project_type: prefilledProjectType || 'Other',
         status: 'Planning',
         start_date: '',
-        end_date: '',
         expected_completion_date: '',
         actual_completion_date: '',
         estimated_budget: '',
@@ -231,20 +42,20 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                     address: editProject.client_address || '',
                     project_type: editProject.project_type || 'Other',
                     status: editProject.status || 'Planning',
-                    start_date: editProject.start_date || '',
-                    end_date: editProject.end_date || editProject.expected_completion_date || '',
-                    expected_completion_date: editProject.expected_completion_date || '',
-                    actual_completion_date: editProject.actual_completion_date || '',
+                    start_date: formatDateForInput(editProject.start_date),
+                    expected_completion_date: formatDateForInput(editProject.expected_completion_date || editProject.end_date),
+                    actual_completion_date: formatDateForInput(editProject.actual_completion_date),
                     estimated_budget: editProject.estimated_budget || '',
                     actual_cost: editProject.actual_cost || '',
                     description: editProject.description || '',
                     assigned_to: editProject.assigned_to || ''
                 });
-            } else if (preselectedClientId || prefilledAddress || prefilledClientName) {
+            } else if (preselectedClientId || prefilledAddress || prefilledClientName || prefilledProjectType) {
                 setFormData(prev => ({
                     ...prev,
                     client_id: preselectedClientId || prev.client_id || '',
-                    address: prefilledAddress || prev.address || ''
+                    address: prefilledAddress || prev.address || '',
+                    project_type: prefilledProjectType || prev.project_type || 'Other'
                 }));
             }
         } else {
@@ -256,7 +67,6 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                 project_type: 'Other',
                 status: 'Planning',
                 start_date: '',
-                end_date: '',
                 expected_completion_date: '',
                 actual_completion_date: '',
                 estimated_budget: '',
@@ -266,7 +76,7 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
             });
             setErrors({});
         }
-    }, [isOpen, editProject, preselectedClientId, prefilledAddress, prefilledClientName]);
+    }, [isOpen, editProject, preselectedClientId, prefilledAddress, prefilledClientName, prefilledProjectType]);
 
     const fetchClients = async () => {
         try {
@@ -320,6 +130,18 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
             if (new Date(formData.actual_completion_date) < new Date(formData.start_date)) {
                 newErrors.actual_completion_date = 'Actual completion date must be after start date';
             }
+        }
+
+        if (formData.estimated_budget && isNaN(formData.estimated_budget)) {
+            newErrors.estimated_budget = 'Budget must be a number';
+        } else if (formData.estimated_budget && parseFloat(formData.estimated_budget) < 0) {
+            newErrors.estimated_budget = 'Budget cannot be negative';
+        }
+
+        if (formData.actual_cost && isNaN(formData.actual_cost)) {
+            newErrors.actual_cost = 'Cost must be a number';
+        } else if (formData.actual_cost && parseFloat(formData.actual_cost) < 0) {
+            newErrors.actual_cost = 'Cost cannot be negative';
         }
 
         setErrors(newErrors);
@@ -422,63 +244,38 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                     <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 'var(--form-gap)' }}>
                         {/* Row 1: PROJECT NAME* | CLIENT* */}
                         <div className="md:col-span-1">
-                            <div className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
-                                <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider font-medium" style={{ fontSize: '11px', zIndex: 10 }}>
-                                    PROJECT NAME <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative flex flex-col">
-                                    <input
-                                        type="text"
-                                        list="existing-projects"
-                                        value={formData.project_name}
-                                        onChange={(e) => handleChange('project_name', e.target.value)}
-                                        placeholder="Enter or select project name"
-                                        style={{
-                                            width: '100%',
-                                            height: 'var(--input-height)',
-                                            padding: 'var(--input-padding)',
-                                            fontSize: 'var(--input-font-size)',
-                                            fontFamily: 'var(--font-family)',
-                                            border: `1px solid ${errors.project_name ? '#ef4444' : 'var(--input-border-color)'}`,
-                                            borderRadius: 'var(--input-border-radius)',
-                                            backgroundColor: 'var(--input-bg-color)',
-                                            outline: 'none'
-                                        }}
-                                    />
-                                    <datalist id="existing-projects">
-                                        {projects.map((p, idx) => (
-                                            <option key={idx} value={p.project_name} />
-                                        ))}
-                                    </datalist>
-                                    {errors.project_name && (
-                                        <span className="text-red-500 text-[11px] mt-1">{errors.project_name}</span>
-                                    )}
-                                </div>
-                            </div>
+                            <InputField
+                                label="PROJECT NAME"
+                                required
+                                value={formData.project_name}
+                                onChange={(e) => handleChange('project_name', e.target.value)}
+                                placeholder="Enter project name"
+                                list="existing-projects"
+                                error={errors.project_name}
+                            />
+                            <datalist id="existing-projects">
+                                {projects.map((p, idx) => (
+                                    <option key={idx} value={p.project_name} />
+                                ))}
+                            </datalist>
                         </div>
                         <div className="md:col-span-1">
                             <SelectField
                                 label="CLIENT"
                                 required
-                                options={clients.map(client =>
-                                    `${client.client_name}${client.company_name ? ` (${client.company_name})` : ''}`
-                                )}
-                                value={(() => {
-                                    const client = clients.find(c => c.id === parseInt(formData.client_id));
-                                    if (client) return `${client.client_name}${client.company_name ? ` (${client.company_name})` : ''}`;
-                                    return prefilledClientName || '';
-                                })()}
-                                onChange={(selected) => {
-                                    const client = clients.find(c =>
-                                        `${c.client_name}${c.company_name ? ` (${c.company_name})` : ''}` === selected
-                                    );
+                                options={clients}
+                                value={formData.client_id}
+                                onChange={(val) => {
+                                    handleChange('client_id', val);
+                                    const client = clients.find(c => c.id === val);
                                     if (client) {
-                                        handleChange('client_id', client.id);
-                                        // Auto-fill address when client is selected
                                         handleChange('address', client.address || '');
                                     }
                                 }}
+                                valueKey="id"
+                                labelKey={(client) => `${client.client_name}${client.company_name ? ` (${client.company_name})` : ''}`}
                                 placeholder="Select a client"
+                                error={errors.client_id}
                             />
                         </div>
 
@@ -496,7 +293,7 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                         <div className="md:col-span-1">
                             <SelectField
                                 label="PROJECT TYPE"
-                                options={["Residential", "Commercial", "Renovation", "Other"]}
+                                options={["Construction", "Interior", "Renovation", "Residential", "Commercial", "Other"]}
                                 value={formData.project_type}
                                 onChange={(value) => handleChange('project_type', value)}
                                 placeholder="Select project type"
@@ -520,18 +317,16 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                                 type="date"
                                 value={formData.start_date}
                                 onChange={(e) => handleChange('start_date', e.target.value)}
-                                helperText={errors.start_date}
-                                helperTextColor={errors.start_date ? 'red' : ''}
+                                error={errors.start_date}
                             />
                         </div>
                         <div className="md:col-span-1">
                             <InputField
-                                label="END DATE"
+                                label="EXPECTED COMPLETION"
                                 type="date"
-                                value={formData.end_date}
-                                onChange={(e) => handleChange('end_date', e.target.value)}
-                                helperText={errors.end_date}
-                                helperTextColor={errors.end_date ? 'red' : ''}
+                                value={formData.expected_completion_date}
+                                onChange={(e) => handleChange('expected_completion_date', e.target.value)}
+                                error={errors.expected_completion_date}
                             />
                         </div>
 
@@ -542,8 +337,7 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                                 type="date"
                                 value={formData.actual_completion_date}
                                 onChange={(e) => handleChange('actual_completion_date', e.target.value)}
-                                helperText={errors.actual_completion_date}
-                                helperTextColor={errors.actual_completion_date ? 'red' : ''}
+                                error={errors.actual_completion_date}
                             />
                         </div>
                         <div className="md:col-span-1">
@@ -555,6 +349,7 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                                 placeholder="0.00"
                                 step="0.01"
                                 min="0"
+                                error={errors.estimated_budget}
                             />
                         </div>
 
@@ -568,26 +363,17 @@ export default function ProjectFormPopup({ isOpen, onClose, onSubmit, editProjec
                                 placeholder="0.00"
                                 step="0.01"
                                 min="0"
+                                error={errors.actual_cost}
                             />
                         </div>
                         <div className="md:col-span-1">
                             <SelectField
                                 label="ASSIGNEE"
-                                options={users.map(user =>
-                                    `${user.first_name} ${user.last_name || ''} (${user.role})`
-                                )}
-                                value={(() => {
-                                    const user = users.find(u => u.id === parseInt(formData.assigned_to));
-                                    return user ? `${user.first_name} ${user.last_name || ''} (${user.role})` : '';
-                                })()}
-                                onChange={(selected) => {
-                                    const user = users.find(u =>
-                                        `${u.first_name} ${u.last_name || ''} (${u.role})` === selected
-                                    );
-                                    if (user) {
-                                        handleChange('assigned_to', user.id);
-                                    }
-                                }}
+                                options={users}
+                                value={formData.assigned_to}
+                                onChange={(val) => handleChange('assigned_to', val)}
+                                valueKey="id"
+                                labelKey={(user) => `${user.first_name} ${user.last_name || ''} (${user.role})`}
                                 placeholder="Select assignee"
                             />
                         </div>

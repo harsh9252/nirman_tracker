@@ -5,28 +5,28 @@ import apiService from "../services/api";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function ChangePasswordPopup({ user, onPasswordChanged, onClose, showCloseButton = false }) {
-  // Prevent closing if it's a temporary password (showCloseButton = false)
-  const handleCloseAttempt = () => {
-    if (showCloseButton && onClose) {
-      onClose();
-    }
-    // If showCloseButton is false, don't allow closing
-  };
-
-  // Prevent Escape key from closing when it's a temporary password
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && !showCloseButton) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
+    // Prevent closing if it's a temporary password (showCloseButton = false)
+    const handleCloseAttempt = () => {
+        if (showCloseButton && onClose) {
+            onClose();
+        }
+        // If showCloseButton is false, don't allow closing
     };
 
-    if (!showCloseButton) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [showCloseButton]);
+    // Prevent Escape key from closing when it's a temporary password
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && !showCloseButton) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+
+        if (!showCloseButton) {
+            document.addEventListener('keydown', handleKeyDown);
+            return () => document.removeEventListener('keydown', handleKeyDown);
+        }
+    }, [showCloseButton]);
     const { updateUser } = useAuth();
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");

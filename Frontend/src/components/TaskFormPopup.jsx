@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FiX, FiCalendar } from "react-icons/fi";
+import { FiX, FiCalendar, FiMapPin } from "react-icons/fi";
 import { useAuth } from "../contexts/AuthContext";
 import { formatDateForInput, formatDateForDisplay, getCurrentDateForInput, isDateInPast, parseDisplayDate } from "../utils/dateUtils.jsx";
 import apiService from "../services/api";
+import LocationPicker from "./LocationPicker";
 
 // InputField component moved outside to prevent re-creation on each render
 const InputField = ({ label, required, type = "text", value, onChange, placeholder, error, ...rest }) => (
@@ -25,27 +26,27 @@ const InputField = ({ label, required, type = "text", value, onChange, placehold
         fontSize: 'var(--placeholder-font-size)',
         fontFamily: 'var(--font-family)',
         fontWeight: 'normal',
-        border: `1px solid ${error ? 'var(--secondary-color)' : 'var(--input-border-color)'}`,
+        border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
         borderRadius: 'var(--input-border-radius)',
         backgroundColor: 'var(--input-bg-color)',
         color: 'var(--input-text-color)',
         outline: 'none',
         transition: 'border-color 0.2s',
       }}
-      onFocus={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-focus-border-color)'}
-      onBlur={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-border-color)'}
+      onFocus={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-focus-border-color)'}
+      onBlur={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-border-color)'}
       {...rest}
     />
     {error && (
-      <p style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)', fontSize: 'var(--error-font-size)', marginTop: '4px' }}>
+      <span style={{ color: '#ef4444', fontFamily: 'var(--font-family)', fontSize: '11px', marginTop: '4px', display: 'block' }}>
         {error}
-      </p>
+      </span>
     )}
   </div>
 );
 
 // TextAreaField component for description
-const TextAreaField = ({ label, required, value, onChange, placeholder, ...rest }) => (
+const TextAreaField = ({ label, required, value, onChange, placeholder, error, ...rest }) => (
   <div className="relative" style={{ marginBottom: 'var(--form-margin-bottom)' }}>
     <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'var(--font-family)', fontSize: 'var(--label-font-size)', fontWeight: 'var(--label-font-weight)' }}>
       <span>
@@ -63,7 +64,7 @@ const TextAreaField = ({ label, required, value, onChange, placeholder, ...rest 
         fontSize: 'var(--placeholder-font-size)',
         fontFamily: 'var(--font-family)',
         fontWeight: 'normal',
-        border: '1px solid var(--input-border-color)',
+        border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
         borderRadius: 'var(--input-border-radius)',
         backgroundColor: 'var(--input-bg-color)',
         color: 'var(--input-text-color)',
@@ -72,10 +73,15 @@ const TextAreaField = ({ label, required, value, onChange, placeholder, ...rest 
         resize: 'vertical',
         minHeight: '80px'
       }}
-      onFocus={(e) => e.target.style.borderColor = 'var(--input-focus-border-color)'}
-      onBlur={(e) => e.target.style.borderColor = 'var(--input-border-color)'}
+      onFocus={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-focus-border-color)'}
+      onBlur={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-border-color)'}
       {...rest}
     />
+    {error && (
+      <span style={{ color: '#ef4444', fontFamily: 'var(--font-family)', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+        {error}
+      </span>
+    )}
   </div>
 );
 
@@ -138,7 +144,7 @@ const DateInputField = ({ label, required, value, onChange, placeholder, error, 
             fontSize: 'var(--placeholder-font-size)',
             fontFamily: 'var(--font-family)',
             fontWeight: 'normal',
-            border: `1px solid ${error ? 'var(--secondary-color)' : 'var(--input-border-color)'}`,
+            border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
             borderRadius: 'var(--input-border-radius)',
             backgroundColor: readOnly ? '#f9fafb' : 'var(--input-bg-color)', // Different background for read-only
             color: 'var(--input-text-color)',
@@ -146,8 +152,8 @@ const DateInputField = ({ label, required, value, onChange, placeholder, error, 
             transition: 'border-color 0.2s',
             cursor: readOnly ? 'default' : 'text',
           }}
-          onFocus={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-focus-border-color)'}
-          onBlur={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-border-color)'}
+          onFocus={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-focus-border-color)'}
+          onBlur={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-border-color)'}
           {...rest}
         />
 
@@ -163,9 +169,9 @@ const DateInputField = ({ label, required, value, onChange, placeholder, error, 
       </div>
 
       {error && (
-        <p style={{ color: 'var(--secondary-color)', fontFamily: 'var(--font-family)', fontSize: 'var(--error-font-size)', marginTop: '4px' }}>
+        <span style={{ color: '#ef4444', fontFamily: 'var(--font-family)', fontSize: '11px', marginTop: '4px', display: 'block' }}>
           {error}
-        </p>
+        </span>
       )}
     </div>
   );
@@ -176,7 +182,10 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
   const [taskNumber, setTaskNumber] = useState("");
   const [taskName, setTaskName] = useState("");
   const [projectName, setProjectName] = useState("");
+  const [projectId, setProjectId] = useState(null);
+  const [projects, setProjects] = useState([]);
   const [leadName, setLeadName] = useState("");
+  const [leadId, setLeadId] = useState(null);
   const [relatedTo, setRelatedTo] = useState("");
 
 
@@ -190,7 +199,14 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
   const [users, setUsers] = useState([]);
   const [leads, setLeads] = useState([]);
   const [errors, setErrors] = useState({});
-  const { user } = useAuth ? useAuth() : { user: null };
+  // Geo Location State
+  const [useLocation, setUseLocation] = useState(false);
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [locationError, setLocationError] = useState("");
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+
+  const { user } = useAuth();
 
   // Generate task number and fetch users when component opens, and populate form for edit
   useEffect(() => {
@@ -203,7 +219,9 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
         setTaskNumber(taskToEdit.taskNumber || "");
         setTaskName(taskToEdit.name || "");
         setProjectName(taskToEdit.projectName || "");
+        setProjectId(taskToEdit.project_id || null);
         setLeadName(taskToEdit.leadName || "");
+        setLeadId(taskToEdit.lead_id || null);
         setRelatedTo(taskToEdit.relatedTo || "");
         setCreatedDate(formattedCreatedDate || getCurrentDateForInput());
         // For edit mode, store the user ID
@@ -213,11 +231,25 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
         setStatus(taskToEdit.status || "");
         setDueDate(formattedDueDate || "");
         setDescription(taskToEdit.description || "");
+
+        // Polulate Location Data
+        if (taskToEdit.latitude && taskToEdit.longitude) {
+          setUseLocation(true);
+          setLatitude(taskToEdit.latitude);
+          setLongitude(taskToEdit.longitude);
+        } else {
+          setUseLocation(false);
+          setLatitude("");
+          setLongitude("");
+        }
+
       } else {
         // Reset form for new task
         setTaskName(initialData?.name || "");
         setProjectName(initialData?.projectName || "");
+        setProjectId(initialData?.project_id || null);
         setLeadName(initialData?.leadName || "");
+        setLeadId(initialData?.lead_id || null);
         setRelatedTo(initialData?.relatedTo || "");
         setCreatedDate(getCurrentDateForInput());
         setAssignTo(initialData?.assignTo || "");
@@ -225,13 +257,66 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
         setStatus(initialData?.status || "New");
         setDueDate(initialData?.dueDate || "");
         setDescription(initialData?.description || "");
+        setUseLocation(false);
+        setLatitude("");
+        setLongitude("");
+        setLocationError("");
         setErrors({});
         fetchNextTaskNumber();
       }
+      // Clear errors when form opens
+      setErrors({});
       fetchUsers();
       fetchLeads();
+      fetchProjects();
     }
   }, [isOpen, isEdit, taskToEdit]);
+
+  const getLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setLocationError("Fetching location...");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude);
+        setLongitude(position.coords.longitude);
+        setLocationError("");
+      },
+      (error) => {
+        let errorMessage = "Unable to retrieve your location.";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "User denied the request for Geolocation.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information is unavailable.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "The request to get user location timed out.";
+            break;
+          default:
+            errorMessage = "An unknown error occurred.";
+            break;
+        }
+        setLocationError(errorMessage);
+        setUseLocation(false); // Uncheck if failed
+      }
+    );
+  };
+
+  // Helper to clear error for a specific field
+  const clearError = (field) => {
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
 
   // Fetch next sequential task number
   const fetchNextTaskNumber = async () => {
@@ -266,6 +351,16 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
     } catch (error) {
       console.error('Error fetching leads:', error);
       setLeads([]); // Empty array if API fails
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const projectData = await apiService.getProjects();
+      setProjects(projectData);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
     }
   };
 
@@ -336,7 +431,11 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
       status: status,
       dueDate: dueDate,
       description: description.trim() || "",
-      createdDate: createdDate
+      createdDate: createdDate,
+      project_id: projectId || (initialData?.project_id || (isEdit ? taskToEdit?.project_id : null)),
+      lead_id: leadId || (initialData?.lead_id || (isEdit ? taskToEdit?.lead_id : null)),
+      latitude: useLocation ? latitude : null,
+      longitude: useLocation ? longitude : null
     };
 
     console.log('💾 SAVE TASK - Data being sent to backend:', {
@@ -352,7 +451,9 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
     // Reset form
     setTaskName("");
     setProjectName("");
+    setProjectId(null);
     setLeadName("");
+    setLeadId(null);
     setRelatedTo("");
     setCreatedDate(getCurrentDateForInput());
     setAssignTo("");
@@ -435,14 +536,14 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
               paddingRight: '40px', // Space for dropdown arrow
               fontSize: 'var(--placeholder-font-size)',
               fontFamily: 'var(--font-family)',
-              border: `1px solid ${error ? 'var(--secondary-color)' : 'var(--input-border-color)'}`,
+              border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
               borderRadius: 'var(--input-border-radius)',
               backgroundColor: 'var(--input-bg-color)',
               color: 'var(--input-text-color)',
               outline: 'none',
               transition: 'border-color 0.2s',
             }}
-            onBlur={(e) => e.target.style.borderColor = error ? 'var(--secondary-color)' : 'var(--input-border-color)'}
+            onBlur={(e) => e.target.style.borderColor = error ? '#ef4444' : 'var(--input-border-color)'}
           />
         ) : (
           <div
@@ -454,7 +555,7 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
               paddingTop: '16px', // Extra top padding to accommodate the label
               fontSize: 'var(--input-font-size)',
               fontFamily: 'var(--font-family)',
-              border: `1px solid ${error ? 'var(--secondary-color)' : 'var(--input-border-color)'}`,
+              border: `1px solid ${error ? '#ef4444' : 'var(--input-border-color)'}`,
               borderRadius: 'var(--input-border-radius)',
               backgroundColor: disabled ? '#f9fafb' : 'var(--input-bg-color)',
               color: value ? 'var(--input-text-color)' : 'var(--input-placeholder-color)',
@@ -524,14 +625,29 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                     cursor: 'pointer',
                     backgroundColor: option === value ? '#f3f4f6' : 'transparent',
                   }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#f9fafb'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = option === value ? '#f3f4f6' : 'transparent'}
+                  onMouseEnter={(e) => (e.target.style.backgroundColor = '#f9fafb')}
+                  onMouseLeave={(e) =>
+                    (e.target.style.backgroundColor = option === value ? '#f3f4f6' : 'transparent')
+                  }
                 >
                   {option}
                 </div>
               ))
             )}
           </div>
+        )}
+        {error && (
+          <span
+            style={{
+              color: '#ef4444',
+              fontFamily: 'var(--font-family)',
+              fontSize: '11px',
+              marginTop: '4px',
+              display: 'block'
+            }}
+          >
+            {error}
+          </span>
         )}
       </div>
     );
@@ -578,7 +694,10 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                 label="TASK NAME"
                 required
                 value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
+                onChange={(e) => {
+                  setTaskName(e.target.value);
+                  clearError("taskName");
+                }}
                 placeholder="Enter task name"
                 error={errors.taskName}
               />
@@ -599,7 +718,10 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                 label="DUE DATE"
                 required
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => {
+                  setDueDate(e.target.value);
+                  clearError("dueDate");
+                }}
                 placeholder="Select due date"
                 error={errors.dueDate}
               />
@@ -616,6 +738,7 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                   onChange={(name) => {
                     const user = users.find(u => u.name === name);
                     setAssignBy(user ? user.id : "");
+                    clearError("assignBy");
                   }}
                   placeholder="Select assigned by"
                   searchable={true}
@@ -640,6 +763,7 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                 onChange={(name) => {
                   const user = users.find(u => u.name === name);
                   setAssignTo(user ? user.id : "");
+                  clearError("assignTo");
                 }}
                 placeholder="Select assigned to"
                 searchable={true}
@@ -654,7 +778,10 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                 required
                 options={["High", "Medium", "Low"]}
                 value={priority}
-                onChange={setPriority}
+                onChange={(val) => {
+                  setPriority(val);
+                  clearError("priority");
+                }}
                 placeholder="Select priority"
                 error={errors.priority}
               />
@@ -665,13 +792,16 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                 required
                 options={["New", "Working", "Completed", "On Hold", "Cancelled"]}
                 value={status}
-                onChange={setStatus}
+                onChange={(val) => {
+                  setStatus(val);
+                  clearError("status");
+                }}
                 placeholder="Select status"
                 error={errors.status}
               />
             </div>
 
-            {/* Row 4: RELATED TO | PROJECT NAME / LEAD NAME (conditional) */}
+            {/* Row 5: RELATED TO | PROJECT NAME / LEAD NAME (conditional) */}
             <div className="md:col-span-1">
               <SelectField
                 label="RELATED TO"
@@ -687,7 +817,10 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                   }
                   if (value !== "Lead") {
                     setLeadName("");
+                    setLeadId(null);
                   }
+                  clearError("projectName");
+                  clearError("leadName");
                 }}
                 placeholder="Select what this task is related to"
               />
@@ -695,12 +828,19 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
             {(relatedTo === "Project" || relatedTo === "Lead") && (
               <div className="md:col-span-1">
                 {relatedTo === "Project" && (
-                  <InputField
+                  <SelectField
                     label="PROJECT NAME"
                     required
+                    options={projects.map(p => p.project_name)}
                     value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    placeholder="Enter project name"
+                    onChange={(selectedName) => {
+                      const project = projects.find(p => p.project_name === selectedName);
+                      setProjectName(selectedName);
+                      setProjectId(project ? project.id : null);
+                      clearError("projectName");
+                    }}
+                    placeholder="Select project"
+                    searchable={true}
                     error={errors.projectName}
                   />
                 )}
@@ -711,7 +851,10 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
                     options={leads.map(lead => lead.contact_name)}
                     value={leadName}
                     onChange={(selectedName) => {
+                      const lead = leads.find(l => l.contact_name === selectedName);
                       setLeadName(selectedName);
+                      setLeadId(lead ? lead.id : null);
+                      clearError("leadName");
                     }}
                     placeholder="Select lead name"
                     searchable={true}
@@ -721,7 +864,98 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
               </div>
             )}
 
-            {/* Row 5: DESCRIPTION (full width) */}
+            {/* Row 6: GEO LOCATION */}
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="includeGeoLocation"
+                  checked={useLocation}
+                  onChange={(e) => {
+                    setUseLocation(e.target.checked);
+                    if (!e.target.checked) {
+                      setLatitude("");
+                      setLongitude("");
+                      setLocationError("");
+                    }
+                  }}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                />
+                <label
+                  htmlFor="includeGeoLocation"
+                  className="text-sm font-medium text-gray-700 cursor-pointer select-none"
+                  style={{ fontFamily: 'var(--font-family)' }}
+                >
+                  Include Geo Location
+                </label>
+              </div>
+
+              {useLocation && (
+                <div className="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  <div className="flex items-center justify-between">
+                    <label className="text-gray-500 uppercase tracking-wider text-xs font-bold" style={{ fontFamily: 'var(--font-family)' }}>
+                      GEO LOCATION
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsLocationPickerOpen(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white hover:opacity-90 transition-all shadow-sm"
+                      style={{ backgroundColor: 'var(--primary-color)', fontFamily: 'var(--font-family)' }}
+                    >
+                      <FiMapPin size={14} /> {latitude && longitude ? 'Change Location' : 'Pick Location'}
+                    </button>
+                  </div>
+
+                  {(latitude || longitude) && (
+                    <div className="mt-3">
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Latitude Field */}
+                        <div className="relative">
+                          <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider text-[10px]" style={{ fontFamily: 'var(--font-family)' }}>
+                            LATITUDE
+                          </label>
+                          <input
+                            type="text"
+                            value={latitude}
+                            readOnly
+                            className="w-full h-10 px-3 pt-1 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none text-sm"
+                            style={{ fontFamily: 'var(--font-family)' }}
+                          />
+                        </div>
+
+                        {/* Longitude Field */}
+                        <div className="relative">
+                          <label className="absolute -top-2 left-3 bg-white px-1 text-gray-500 uppercase tracking-wider text-[10px]" style={{ fontFamily: 'var(--font-family)' }}>
+                            LONGITUDE
+                          </label>
+                          <input
+                            type="text"
+                            value={longitude}
+                            readOnly
+                            className="w-full h-10 px-3 pt-1 border border-gray-300 rounded-lg bg-white text-gray-700 focus:outline-none text-sm"
+                            style={{ fontFamily: 'var(--font-family)' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 underline text-xs flex items-center gap-1"
+                          style={{ fontFamily: 'var(--font-family)' }}
+                        >
+                          <FiMapPin size={12} /> View on Google Maps
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Row 7: DESCRIPTION (full width) */}
             <div className="md:col-span-2">
               <TextAreaField
                 label="DESCRIPTION"
@@ -733,6 +967,18 @@ export default function TaskFormPopup({ isOpen, onClose, onSubmit, isEdit = fals
           </div>
         </div>
       </div>
+      {/* Location Picker Modal */}
+      <LocationPicker
+        isOpen={isLocationPickerOpen}
+        onClose={() => setIsLocationPickerOpen(false)}
+        onConfirm={(lat, lng) => {
+          setLatitude(lat);
+          setLongitude(lng);
+          setUseLocation(true);
+        }}
+        initialLat={latitude}
+        initialLng={longitude}
+      />
     </div>
   );
 }
